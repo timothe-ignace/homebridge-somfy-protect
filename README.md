@@ -6,7 +6,7 @@
 
 # Homebridge Somfy Protect
 
-[![npm](https://img.shields.io/npm/v/homebridge-somfy-protect-alarm)](https://www.npmjs.com/package/homebridge-somfy-protect-alarm)
+[![npm](https://img.shields.io/npm/v/homebridge-somfy-protect-v2)](https://www.npmjs.com/package/homebridge-somfy-protect-v2)
 
 Control your **Somfy Protect** alarm (ex-MyFox) from Apple Home: arm, partially arm and disarm it, and see its state change when you use the Somfy app or the keypad.
 
@@ -21,7 +21,7 @@ Control your **Somfy Protect** alarm (ex-MyFox) from Apple Home: arm, partially 
 In Homebridge UI, search for **Somfy Protect** and click Install. Or from a terminal:
 
 ```
-npm install -g homebridge-somfy-protect-alarm
+npm install -g homebridge-somfy-protect-v2
 ```
 
 Needs Node.js 22.12 or newer and Homebridge 1.8 or newer (Homebridge 2 works).
@@ -81,10 +81,25 @@ A short history, so you know which steps apply to you:
 |---------|------------|
 | 1.x | The original plugin, `homebridge-somfy-protect`, no longer maintained. |
 | 2.x | The start of this fork, published as `homebridge-somfy-protect-alarm` because the original name belongs to the previous maintainer. Same config as 1.x, with fixes and updated dependencies. |
-| 3.x | The plugin became a Homebridge *platform*, so the config format changed (below). It now adds every home of your account, plus the smoke sensors. |
+| 3.0 to 3.1 | Still published as `homebridge-somfy-protect-alarm`. The plugin became a Homebridge *platform*, so the config format changed (below). It now adds every home of your account, plus the smoke sensors. |
+| 3.2 and later | Renamed to `homebridge-somfy-protect-v2`, since it is no longer only an alarm. Same config as 3.1 (below). |
 
 <details>
-<summary>From 2.x of this plugin</summary>
+<summary>From <code>homebridge-somfy-protect-alarm</code> (2.x to 3.1)</summary>
+
+The package was renamed, the code and config are the same as 3.1 (from 2.x, also do the config change in the next section first). Uninstall the old package, install the new one and restart:
+
+```
+npm uninstall -g homebridge-somfy-protect-alarm
+npm install -g homebridge-somfy-protect-v2
+```
+
+Your `platforms` entry stays as it is, and the accessories keep their identity, so Home should keep your rooms and automations. If Home shows duplicates, remove the old accessories in Homebridge UI (Settings, Remove Single Cached Accessory).
+
+</details>
+
+<details>
+<summary>From 2.x of this plugin (config change)</summary>
 
 Change your `config.json` once:
 

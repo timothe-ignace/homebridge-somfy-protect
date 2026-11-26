@@ -9,7 +9,7 @@ import {attachSmokeSensor} from "./lib/smoke_sensor";
 
 const PLUGIN_VERSION: string = JSON.parse(readFileSync(join(__dirname, "..", "package.json"), "utf8")).version;
 
-const PLUGIN_NAME = "homebridge-somfy-protect-alarm";
+const PLUGIN_NAME = "homebridge-somfy-protect-v2";
 const PLATFORM_NAME = "SomfyProtect";
 const TOKEN_FILE_NAME = "somfy-protect-token.json";
 
