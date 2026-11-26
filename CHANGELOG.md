@@ -1,5 +1,10 @@
 # Changelog
 
+## 3.2.0 (2026-11-26)
+
+### Changed
+- The npm package is renamed from `homebridge-somfy-protect-alarm` to `homebridge-somfy-protect-v2`, since the plugin is no longer only an alarm. The code and the configuration are the same as 3.1.0 (`"platform": "SomfyProtect"` is unchanged). Uninstall the old package and install the new one; see "Upgrading" in the README. The old package is deprecated and will not get further releases.
+
 ## 3.1.0 (2026-11-26)
 
 Tested on a real account and Homebridge (as `3.1.0-beta.1`) before this release.
