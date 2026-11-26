@@ -1,27 +1,4 @@
-import {Logging} from "homebridge";
-import {SomfyAPI, SomfyAPIError} from "./somfy_api";
 import {EventEmitter} from "events";
-import {LoggingAmount} from "./logging_amount";
-import Timeout = NodeJS.Timeout;
-
-const POLL_INTERVAL = 10000;
-const MAX_BACKOFF = 15 * 60 * 1000;
-
-interface SomfySiteConfig {
-  username: string;
-  password: string;
-  loggingAmount: LoggingAmount;
-  siteId: string;
-  clientId?: string;
-  clientSecret?: string;
-  tokenFile?: string;
-}
-
-interface SomfySiteItem {
-  site_id: string;
-  name: string;
-  security_level?: "disarmed" | "armed" | "partial";
-}
 
 export enum State {
   AWAY_ARM = 1,
@@ -30,295 +7,29 @@ export enum State {
   ALARM_TRIGGERED = 4
 }
 
-export class HomekitSomfySite {
+type SendTargetState = (site: SomfySite, state: State) => void;
 
-  private readonly logger: Logging;
-  private readonly config: SomfySiteConfig;
-  private readonly somfyAPI: SomfyAPI;
-  private readonly emitter: EventEmitter;
+/**
+ * The state of one Somfy site as seen from HomeKit. It is fed by a SomfyAccount (polling) and sends commands through it.
+ */
+export class SomfySite {
 
-  private siteId: string | null = null;
   private currentState: State | null = null;
   private targetState: State | null = null;
-  private timeout: Timeout | null = null;
-  private initTimeout: Timeout | null = null;
-  private polling = false;
-  private stopped = false;
-  private readonly warnedLevels = new Set<string>();
-  private readonly warnedAlarmStatuses = new Set<string>();
-  private pollingStopped = false;
-  private commandsInFlight = 0;
-  private failureCount = 0;
-  private retryAfterMs = 0;
+  private readonly emitter = new EventEmitter();
 
-  constructor(logger: Logging, config: SomfySiteConfig) {
-    this.logger = logger;
-    this.config = config;
-
-    this.somfyAPI = new SomfyAPI(logger, {
-      username: config.username,
-      password: config.password,
-      loggingAmount: config.loggingAmount,
-      clientId: config.clientId,
-      clientSecret: config.clientSecret,
-      tokenFile: config.tokenFile
-    });
-
-    this.emitter = new EventEmitter();
-
-    // logging
-    this.emitter.addListener("currentStateChange", () => {
-      if (this.config.loggingAmount > LoggingAmount.OFF) {
-        this.logger.info(`Current state changed: currentState=${this.currentState}, targetState=${this.targetState}`);
-      }
-    });
-
-    this.initializeWithRetry();
-  }
-
-  private async initializeWithRetry() {
-    let success = false;
-    let threw = false;
-    try {
-      success = await this.initialize();
-    } catch (error: unknown) {
-      if (this.stopped) {
-        return;
-      }
-      threw = true;
-      this.registerFailure(error);
-      this.logger.error(`Could not initialize: ${errorMessage(error)}`);
-    }
-    if (this.stopped) {
-      return;
-    }
-    if (success) {
-      this.failureCount = 0;
-      this.retryAfterMs = 0;
-      this.startPolling();
-    } else {
-      if (!threw) {
-        // no exception (e.g. unknown siteId, no site on the account): still back off instead of retrying every poll interval
-        this.failureCount++;
-      }
-      const delay = this.nextDelay();
-      this.logger.warn(`Initialization failed, retrying in ${Math.round(delay / 1000)} s`);
-      this.initTimeout = setTimeout(() => {
-        this.initTimeout = null;
-        this.initializeWithRetry();
-      }, delay);
-    }
-  }
-
-  /**
-   * Returns true when the site could be retrieved. Throws when the API call fails.
-   */
-  private async initialize(): Promise<boolean> {
-    const result = await this.somfyAPI.getALLSites();
-    const items: SomfySiteItem[] = result?.data?.items ?? [];
-    const site = this.config.siteId ? items.find((site) => site.site_id === this.config.siteId) : items[0];
-    if (items.length > 1 && site) {
-      const loggingFunction = this.config.siteId ? "info" : "warn";
-      this.logger[loggingFunction](
-        `Multiple sites detected on your somfy account, using site ID ${site.site_id}. ` +
-        "To use an other site, specify site ID in the plugin config under the name \"siteId\"."
-      );
-      this.logger[loggingFunction]("Possible sites detected on your somfy account:");
-      items.forEach((site, index) => {
-        this.logger[loggingFunction](`Site ${index + 1}: ${site.name}, site ID: ${site.site_id}`);
-      });
-    }
-    if (site) {
-      // set site id
-      this.siteId = site.site_id;
-      // set current state
-      if (site.security_level) {
-        const currentState = this.mapSecurityLevel(site.security_level);
-        if (currentState !== undefined) {
-          this.currentState = currentState;
-          this.targetState = currentState;
-        }
-      }
-      return this.isInitialized();
-    }
-    if (result?.data) {
-      if (items.length === 0) {
-        this.logger.error("Could not retrieve site: no sites are configured on your somfy account");
-        return false;
-      } else if (this.config.siteId) {
-        this.logger.error(
-          `Could not retrieve site: the siteId "${this.config.siteId}" you have configured can not be found on your somfy account`
-        );
-        this.logger.error("Possible sites detected on your somfy account:");
-        items.forEach((site, index) => {
-          this.logger.error(`Site ${index + 1}: ${site.name}, site ID: ${site.site_id}`);
-        });
-        return false;
-      }
-    }
-    this.logger.error("Could not retrieve site: an unknown error has occurred");
-    return false;
+  constructor(readonly siteId: string, readonly name: string, private readonly sendTargetState: SendTargetState) {
   }
 
   isInitialized(): boolean {
-    return this.siteId !== null && this.currentState !== null && this.targetState !== null;
-  }
-
-  private registerFailure(error: unknown) {
-    this.failureCount++;
-    const retryAfterMs = error instanceof SomfyAPIError ? error.retryAfterMs : undefined;
-    this.retryAfterMs = retryAfterMs ?? 0;
-  }
-
-  /**
-   * Delay before the next attempt: the poll interval after a success, otherwise an exponential backoff
-   * (capped, with jitter), never shorter than the Retry-After requested by the server.
-   */
-  private nextDelay(): number {
-    if (this.failureCount === 0) {
-      return POLL_INTERVAL;
-    }
-    const backoff = Math.min(MAX_BACKOFF, POLL_INTERVAL * Math.pow(2, this.failureCount));
-    const jittered = backoff * (0.8 + Math.random() * 0.4);
-    return Math.max(jittered, this.retryAfterMs);
-  }
-
-  private async poll() {
-    if (this.siteId === null || this.polling) {
-      return;
-    }
-    this.polling = true;
-    try {
-      const result = await this.somfyAPI.getSite(this.siteId);
-      if (this.stopped) {
-        return;
-      }
-      const security_level = result?.data?.security_level;
-      this.reportAlarmStatus(result?.data?.alarm?.status);
-      if (this.failureCount > 0) {
-        this.logger.info("Connection to somfy restored");
-      }
-      this.failureCount = 0;
-      this.retryAfterMs = 0;
-      // a pending command has priority over what the poll has seen
-      if (security_level && this.commandsInFlight === 0) {
-        // logging
-        if (this.config.loggingAmount === LoggingAmount.FULL) {
-          this.logger.info("Poll security level with success, getting:", security_level);
-        }
-        const state = this.mapSecurityLevel(security_level);
-        if (state !== undefined) {
-          this.setCurrentState(state);
-        }
-      }
-    } catch (error: unknown) {
-      if (this.stopped) {
-        return;
-      }
-      this.registerFailure(error);
-      const delay = Math.round(this.nextDelay() / 1000);
-      this.logger.error(`Poll failed (attempt ${this.failureCount}), retrying in ${delay} s: ${errorMessage(error)}`);
-    } finally {
-      this.polling = false;
-      this.scheduleNextPoll();
-    }
-  }
-
-  private scheduleNextPoll(delay?: number) {
-    if (this.stopped || this.pollingStopped || this.commandsInFlight > 0) {
-      return;
-    }
-    if (this.timeout !== null) {
-      clearTimeout(this.timeout);
-    }
-    this.timeout = setTimeout(() => {
-      this.timeout = null;
-      this.poll().catch(error => this.logger.error(`Unexpected poll error: ${errorMessage(error)}`));
-    }, delay ?? this.nextDelay());
-  }
-
-  private startPolling() {
-    if (!this.stopped && this.isInitialized()) {
-      this.pollingStopped = false;
-      if (this.timeout === null && !this.polling) {
-        this.scheduleNextPoll(0);
-      } else {
-        // logging
-        if (this.config.loggingAmount === LoggingAmount.FULL) {
-          this.logger.info("startPolling: Polling already started");
-        }
-      }
-    }
-  }
-
-  private stopPolling() {
-    this.pollingStopped = true;
-    if (this.timeout !== null) {
-      clearTimeout(this.timeout);
-      this.timeout = null;
-    } else {
-      // logging
-      if (this.config.loggingAmount === LoggingAmount.FULL) {
-        this.logger.info("stopPolling: Polling already stopped");
-      }
-    }
-  }
-
-  /**
-   * Stops all timers; in-flight results and rescheduling become no-ops. Call on Homebridge shutdown.
-   */
-  stop() {
-    this.stopped = true;
-    if (this.timeout !== null) {
-      clearTimeout(this.timeout);
-      this.timeout = null;
-    }
-    if (this.initTimeout !== null) {
-      clearTimeout(this.initTimeout);
-      this.initTimeout = null;
-    }
-  }
-
-  /**
-   * Maps a Somfy security level; for an unknown value warns once per distinct value and returns undefined
-   * so that the caller keeps the previous state.
-   */
-  private mapSecurityLevel(securityLevel: string): State | undefined {
-    const state = somfySecurityLevelToHomekitState(securityLevel);
-    if (state === undefined && !this.warnedLevels.has(securityLevel)) {
-      this.warnedLevels.add(securityLevel);
-      this.logger.warn(`Unknown security level "${securityLevel}" received from somfy, keeping the previous state`);
-    }
-    return state;
-  }
-
-  /**
-   * `alarm.status` is "none" while idle. Its values during a trigger are not known yet (see issue #6), so they are not
-   * mapped to HomeKit: warn once per distinct value so that it can be reported.
-   */
-  private reportAlarmStatus(status: unknown) {
-    if (typeof status === "string" && status !== "none" && !this.warnedAlarmStatuses.has(status)) {
-      this.warnedAlarmStatuses.add(status);
-      this.logger.warn(
-        `Somfy reports alarm status "${status}". It is not shown in HomeKit yet; please report this value in ` +
-        "https://github.com/timothe-ignace/homebridge-somfy-protect/issues/6"
-      );
-    }
+    return this.currentState !== null && this.targetState !== null;
   }
 
   getCurrentState(): State {
     if (this.currentState) {
       return this.currentState;
     } else {
-      throw new Error("getCurrentState: HomekitSomfySite not properly initialized");
-    }
-  }
-
-  private setCurrentState(state: State) {
-    if (this.currentState !== state) {
-      this.currentState = state;
-      this.targetState = state; // needed when external changes are occurring
-      this.emitter.emit("currentStateChange");
+      throw new Error("getCurrentState: SomfySite not properly initialized");
     }
   }
 
@@ -326,51 +37,15 @@ export class HomekitSomfySite {
     if (this.targetState) {
       return this.targetState;
     } else {
-      throw new Error("getTargetState: HomekitSomfySite not properly initialized");
+      throw new Error("getTargetState: SomfySite not properly initialized");
     }
   }
 
+  /**
+   * Asks Somfy to change the state; never throws, a failure reverts the target state.
+   */
   setTargetState(state: State) {
-    this.targetState = state;
-    if (this.siteId === null) {
-      return;
-    }
-    let securityLevel: "disarmed" | "armed" | "partial";
-    try {
-      securityLevel = homekitStateToSomfySecurityLevel(state);
-    } catch (error: unknown) {
-      this.logger.error(errorMessage(error));
-      return;
-    }
-    // logging
-    if (this.config.loggingAmount === LoggingAmount.FULL) {
-      this.logger.info("setTargetState", state);
-    }
-    // no polling while the command is in flight
-    this.stopPolling();
-    this.commandsInFlight++;
-    this.somfyAPI.setSecurityLevel(this.siteId, securityLevel)
-      .then(() => {
-        this.failureCount = 0;
-        this.retryAfterMs = 0;
-      })
-      .catch((error: unknown) => {
-        this.registerFailure(error);
-        this.logger.error(`Could not set the security level: ${errorMessage(error)}`);
-        // the command failed, go back to what the system really is
-        if (this.targetState === state && this.currentState !== null && this.currentState !== state) {
-          this.targetState = this.currentState;
-          this.emitter.emit("currentStateChange");
-        }
-      })
-      .finally(() => {
-        this.commandsInFlight--;
-        if (this.commandsInFlight === 0) {
-          this.pollingStopped = false;
-          this.scheduleNextPoll(this.failureCount > 0 ? undefined : 1000);
-        }
-      })
-      .catch(error => this.logger.error(`Unexpected error: ${errorMessage(error)}`));
+    this.sendTargetState(this, state);
   }
 
   onCurrentStateChange(callback: () => void) {
@@ -379,6 +54,34 @@ export class HomekitSomfySite {
 
   offCurrentStateChange(callback: () => void) {
     this.emitter.removeListener("currentStateChange", callback);
+  }
+
+  /** @internal Sets the first known state, without notification. */
+  initState(state: State) {
+    this.currentState = state;
+    this.targetState = state;
+  }
+
+  /** @internal The state seen by a poll (also needed for changes made outside HomeKit). */
+  updateState(state: State) {
+    if (this.currentState !== state) {
+      this.currentState = state;
+      this.targetState = state;
+      this.emitter.emit("currentStateChange");
+    }
+  }
+
+  /** @internal Remembers the requested state while the command is in flight. */
+  requestTargetState(state: State) {
+    this.targetState = state;
+  }
+
+  /** @internal The command failed: go back to what the system really is. */
+  revertTargetState(failed: State) {
+    if (this.targetState === failed && this.currentState !== null && this.currentState !== failed) {
+      this.targetState = this.currentState;
+      this.emitter.emit("currentStateChange");
+    }
   }
 
 }
@@ -407,7 +110,4 @@ export function homekitStateToSomfySecurityLevel(state: State): "disarmed" | "ar
     default:
       throw new Error("Unknown security level for " + state);
   }
-}
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
 }

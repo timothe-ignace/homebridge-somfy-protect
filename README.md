@@ -17,15 +17,15 @@ Either install and configure the plugin using Config UI X or install it manually
 npm install -g homebridge-somfy-protect-alarm
 ```
 
-> **Migrating from `homebridge-somfy-protect`?** This is the maintained continuation of that unmaintained plugin, published under a new npm name. Uninstall the old one (`npm uninstall -g homebridge-somfy-protect`), install this one, and keep your config as is: the accessory is still `"accessory": "SomfyProtect"`.
+> **Migrating from `homebridge-somfy-protect`?** This is the maintained continuation of that unmaintained plugin, published under a new npm name. Uninstall the old one (`npm uninstall -g homebridge-somfy-protect`), install this one, and follow "Upgrading from 2.x" below (the config format changed in 3.0.0).
 
 Requirements: Node.js 22.12+ (22, 24 or 26) and Homebridge 1.8+ (Homebridge 2.x supported).
 
-Then, add the following configuration to the `accessories` array in your Homebridge `config.json`.
+Then, add the following configuration to the `platforms` array in your Homebridge `config.json` (or use the plugin settings in Config UI X).
 
 ```
 {
-  "accessory": "SomfyProtect",
+  "platform": "SomfyProtect",
   "name": "Somfy Protect",
   "username": "my.somfy@account.fr",
   "password": "my.somfy.account.password"
@@ -34,30 +34,38 @@ Then, add the following configuration to the `accessories` array in your Homebri
 
 The credentials required in the configuration are the same ones you use in the official Somfy Protect app on your smartphone.
 
-That's it! The plugin will automatically add your Somfy Protect alarm in your homekit accessories.
-
-If your somfy account has multiple homes set up, you can specify which home the plugin should be using in the config by specifying the `siteId` attribute. You should see the list of available homes in the plugin logs (even if you have turned off logs). Your config should now look like this:
+That's it! The plugin adds one alarm (security system) to HomeKit for **every home** of your Somfy account. The homes found are listed in the plugin logs. To add only some of them, list their site IDs:
 
 ```
 {
-  "accessory": "SomfyProtect",
+  "platform": "SomfyProtect",
   "name": "Somfy Protect",
   "username": "my.somfy@account.fr",
   "password": "my.somfy.account.password",
-  "siteId": "yoursiteid"
+  "siteIds": ["yoursiteid"]
 }
 ```
+
+## Upgrading from 2.x
+
+Version 3.0.0 is a Homebridge *platform* (it was an *accessory* plugin). You have to change your `config.json` once:
+
+1. Remove the `{"accessory": "SomfyProtect", ...}` entry from the `accessories` array.
+2. Add the `{"platform": "SomfyProtect", ...}` entry above to the `platforms` array. The same `username`, `password`, `loggingAmount`, `clientId` and `clientSecret` keys work. A single `siteId` is still understood, but `siteIds` (a list) is preferred.
+3. Restart Homebridge. The plugin warns in the log if the old entry is still there.
+
+HomeKit will see the alarm as a **new accessory**: rooms, scenes and automations that used the old one have to be set up again, and the old accessory can be removed from the Home app.
 
 ## Configuration fields
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `accessory` | yes | Must be `SomfyProtect`. |
-| `name` | yes | Accessory name shown in HomeKit. |
+| `platform` | yes | Must be `SomfyProtect`. |
+| `name` | yes | Name of the platform in the Homebridge log. The accessories are named after your Somfy homes. |
 | `username` | yes | Your Somfy Protect account username. |
 | `password` | yes | Your Somfy Protect account password. |
 | `loggingAmount` | no | `0` = off (default), `1` = partial (state changes only), `2` = full. Other values fall back to `0`. |
-| `siteId` | no | Site (home) to use when your account has several. Available IDs are listed in the plugin logs. |
+| `siteIds` | no | List of the homes (sites) to add. Empty or missing: all homes of the account. Available IDs are listed in the plugin logs. |
 | `clientId` / `clientSecret` | no | Override the built-in OAuth client (the public Somfy mobile app client). Must be set together. Useful if Somfy revokes the built-in client (the log then reports `invalid_client`). |
 
 If `username` or `password` is missing or empty, the plugin logs a clear error and does not connect, but Homebridge keeps running.
@@ -69,15 +77,12 @@ If `username` or `password` is missing or empty, the plugin logs a clear error a
 - The OAuth client credentials contained in the source code are the public ones of the Somfy Protect mobile app. They are not secrets of this project.
 - Two-factor authentication: this plugin has not been verified to work with accounts that have 2FA enabled, and no 2FA step is implemented. If login fails, try with an account without 2FA (untested).
 
-## Requirements
-
-Target: Node.js >= 20 and Homebridge 1.6+ or 2.x. (The exact supported versions are defined in `package.json`.)
-
 ## Troubleshooting
 
 - **HTTP 429 / "Too many requests"**: Somfy is rate limiting your account or IP. Wait some minutes, avoid restarting Homebridge repeatedly, and avoid running other tools that log in to Somfy at the same time.
 - **Accessory shows "No Response"**: the plugin could not (yet) read the state from Somfy. Check the Homebridge logs for login or site errors, and verify your credentials in the Somfy Protect app.
-- **Wrong home used**: set `siteId` (see the plugin logs for the list of sites).
+- **A home is missing, or one too many**: set `siteIds` (see the plugin logs for the list of sites).
+- **Two alarms, or errors about "accessory" after upgrading**: the old `accessories` entry is still in `config.json`, see "Upgrading from 2.x".
 
 ## Help & Support
 Any feedback is welcome. For bugs, feature requests, open an issue here :)
