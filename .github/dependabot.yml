@@ -4,14 +4,30 @@ updates:
     directory: "/"
     schedule:
       interval: weekly
+    open-pull-requests-limit: 5
+    # "fix(deps): ..." for runtime dependencies (axios), "chore(deps): ..." for dev tooling: Conventional Commits
+    commit-message:
+      prefix: fix
+      prefix-development: chore
+      include: scope
+    labels: [dependencies]
     groups:
-      npm-dependencies:
-        patterns:
-          - "*"
+      # runtime dependencies (axios) get their own PR, separate from dev tooling
+      runtime-dependencies:
+        dependency-type: production
+      dev-dependencies:
+        dependency-type: development
+    ignore:
+      # keep @types/node on the oldest supported Node major (see "engines")
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
       interval: weekly
+    commit-message:
+      prefix: ci
+    labels: [dependencies]
     groups:
       github-actions:
         patterns:

@@ -25,11 +25,12 @@
     "README.md"
   ],
   "scripts": {
-    "lint": "eslint src --max-warnings=0",
+    "lint": "eslint src test scripts --max-warnings=0",
     "watch": "npm run build && npm link && nodemon",
     "build": "rimraf ./dist && tsc",
     "test": "rimraf ./.test-dist && tsc -p tsconfig.test.json && node --test \".test-dist/test/*.test.js\"",
-    "prepublishOnly": "npm run lint && npm run build"
+    "prepublishOnly": "npm run lint && npm run build",
+    "prepare": "husky || true"
   },
   "keywords": [
     "homebridge-plugin",
@@ -48,10 +49,13 @@
     "homebridge": "^1.8.0 || ^2.0.0"
   },
   "devDependencies": {
+    "@commitlint/cli": "^21.2.4",
+    "@commitlint/config-conventional": "^21.2.4",
     "@eslint/js": "^10.0.1",
     "@types/node": "^22.20.7",
     "eslint": "^10.15.0",
     "homebridge": "^2.5.0",
+    "husky": "^9.1.7",
     "nodemon": "^3.1.14",
     "rimraf": "^6.1.4",
     "ts-node": "^10.9.2",

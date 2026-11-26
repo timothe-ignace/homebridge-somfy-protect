@@ -2,7 +2,7 @@ import eslint from "@eslint/js";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist"] },
+  { ignores: ["dist", ".test-dist"] },
   eslint.configs.recommended,
   tseslint.configs.recommended,
   {
@@ -29,6 +29,23 @@ export default tseslint.config(
       "@typescript-eslint/explicit-function-return-type": "off",
       "@typescript-eslint/no-non-null-assertion": "off",
       "@typescript-eslint/explicit-module-boundary-types": "off",
+    },
+  },
+  {
+    // standalone Node scripts: console output is their purpose, and they use the Node 22+ globals
+    files: ["scripts/**/*.mjs"],
+    languageOptions: {
+      globals: {
+        console: "readonly",
+        process: "readonly",
+        fetch: "readonly",
+        AbortSignal: "readonly",
+        URLSearchParams: "readonly",
+      },
+    },
+    rules: {
+      "no-console": "off",
+      "max-len": "off",
     },
   },
 );
