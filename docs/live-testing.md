@@ -33,8 +33,8 @@ npm ci && npm run build && npm pack          # creates homebridge-somfy-protect-
 sudo npm install -g ./homebridge-somfy-protect-<version>.tgz     # or install the .tgz in your Homebridge's plugin folder
 ```
 
-Set `"loggingAmount": 2` in the plugin config, restart Homebridge, and check:
-- the log shows the site and no `429`; the token is requested once, not on every poll,
+Configure the plugin as a platform (`"platform": "SomfyProtect"`, see the README), set `"loggingAmount": 2`, restart Homebridge, and check:
+- the log lists your site(s) and adds one accessory per site, with no `429`; the token is requested once, not on every poll,
 - arming, partially arming and disarming from the Home app is reflected in the Somfy app, and the reverse within about 10 s,
 - let it run a few hours: no "Poll failed" burst, and a Homebridge restart does not crash the child bridge,
 - with a wrong password, the plugin logs errors and keeps Homebridge running (no restart loop).

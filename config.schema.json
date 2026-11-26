@@ -1,6 +1,6 @@
 {
   "pluginAlias": "SomfyProtect",
-  "pluginType": "accessory",
+  "pluginType": "platform",
   "singular": true,
   "headerDisplay": "Unofficial plugin. Your Somfy password is stored in plain text in Homebridge's config.json; protect that file accordingly.",
   "schema": {
@@ -10,7 +10,7 @@
         "title": "Name",
         "type": "string",
         "default": "Somfy Protect",
-        "description": "Name of the accessory shown in HomeKit."
+        "description": "Name of the platform in the Homebridge log."
       },
       "username": {
         "title": "Username",
@@ -32,7 +32,11 @@
         "default": 0,
         "minimum": 0,
         "maximum": 2,
-        "enum": [0, 1, 2],
+        "enum": [
+          0,
+          1,
+          2
+        ],
         "description": "0 = off, 1 = partial (state changes only), 2 = full (everything)."
       },
       "clientId": {
@@ -49,12 +53,20 @@
         },
         "description": "Optional. Overrides the built-in Somfy client secret. Must be set together with the client ID."
       },
-      "siteId": {
-        "title": "Site ID",
-        "type": "string",
-        "description": "Optional. If your Somfy account has several homes, set the 'Site ID' of the one to use. Available site IDs are listed in the plugin logs."
+      "siteIds": {
+        "title": "Site IDs",
+        "type": "array",
+        "items": {
+          "title": "Site ID",
+          "type": "string"
+        },
+        "description": "Optional. By default every home (site) of your Somfy account is added. To add only some of them, list their site IDs here. Available site IDs are listed in the plugin logs."
       }
     },
-    "required": ["name", "username", "password"]
+    "required": [
+      "name",
+      "username",
+      "password"
+    ]
   }
 }

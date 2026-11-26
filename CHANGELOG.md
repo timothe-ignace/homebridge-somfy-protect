@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### Changed (breaking)
+- The plugin is now a Homebridge **dynamic platform** (it was an accessory plugin). Move the config block from `accessories` to `platforms` and use `"platform": "SomfyProtect"`; see "Upgrading from 2.x" in the README. HomeKit sees the alarm as a new accessory.
+- Every home (site) of the Somfy account is added as its own security system, instead of one per config entry. The new `siteIds` list limits this; the old `siteId` is still read.
+- One login, one token and one polling loop (with the existing backoff) serve all sites.
+
+### Added
+- A warning when the 2.x accessory entry is still present in `config.json`.
+- Tests for the config validation, the platform (discovery, cache restore, removal of vanished sites) and several sites.
+- `supports-hap` keyword.
+
 ## 2.0.1 (2026-11-26)
 
 ### Added

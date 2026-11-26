@@ -1,13 +1,16 @@
 # homebridge-somfy-protect: maintenance context
 
 Maintained continuation of an unmaintained upstream project. Never open PRs against the upstream repository; work in this repository only.
-Homebridge accessory plugin (TypeScript) exposing a Somfy Protect (ex-MyFox) alarm as a HomeKit security system. Published on npm as `homebridge-somfy-protect-alarm` (the original package name belongs to the previous maintainer).
+Homebridge dynamic platform plugin (TypeScript, since 3.0.0; an accessory plugin before) exposing the Somfy Protect (ex-MyFox) alarm of every site of an account as a HomeKit security system. Published on npm as `homebridge-somfy-protect-alarm` (the original package name belongs to the previous maintainer).
 Auth: OAuth2 password grant at `sso.myfox.io` with the public Somfy mobile-app client id/secret (hardcoded in `src/lib/somfy_api.ts`, overridable with `clientId`/`clientSecret`); API at `https://api.myfox.io/v3`.
 
 ## Layout
-- `src/index.ts`: accessory, HomeKit characteristics, config validation
+- `src/index.ts`: dynamic platform (discovery, accessory cache, removal of vanished sites, legacy-config warning)
+- `src/lib/config.ts`: `validateConfig`
+- `src/lib/security_system.ts`: HomeKit security system characteristics for one site
+- `src/lib/somfy_account.ts`: one account = one login, site discovery, one polling loop with backoff, commands
+- `src/lib/homekit_somfy_site.ts`: `SomfySite` (state of one site), state mapping (`armed`->AWAY_ARM, `partial`->NIGHT_ARM, `disarmed`->DISARMED)
 - `src/lib/somfy_api.ts`: HTTP client, token handling and disk cache
-- `src/lib/homekit_somfy_site.ts`: init, polling, state mapping (`armed`->AWAY_ARM, `partial`->NIGHT_ARM, `disarmed`->DISARMED)
 - `config.schema.json`: Config UI X schema
 - `test/`: `node:test` suite (network faked by stubbing `axios.create`), run with `npm test`
 - `scripts/live-check.mjs`, `docs/live-testing.md`: read-only check against the real Somfy API
@@ -30,8 +33,8 @@ Bump the version in `package.json`, update `CHANGELOG.md`, merge (PR title `chor
 Tracked as GitHub issues:
 - #6 map `ALARM_TRIGGERED`: the value of `alarm.status` during a real trigger is unknown (it is `none` when idle). The plugin warns once about any other value; map it once someone reports it.
 - #15 account requirements (owner vs child user, 2FA).
-- #16 dynamic platform plugin (discussion).
-Not covered by tests yet: `validateConfig` (in `src/index.ts`) and the token file persistence.
+- #16 dynamic platform: implemented for 3.0.0 (design in the issue). Sensors/detectors from `/site/{id}/device` are a follow-up once their structure is known (extend `live-check`). Applying for "Verified by Homebridge" (requires a dynamic platform) comes after 3.0.0 is released and tested on a real account.
+Not covered by tests yet: the token file persistence.
 
 ## Somfy API facts
 Verified with a live owner account (2026-11-26):
