@@ -1,6 +1,13 @@
 # Ignore source code
 src
 
+# Tarball should contain only dist, config.schema.json, README, LICENSE, package.json
+.claude
+.github
+*.map
+nodemon.json
+package-lock.json
+
 # ------------- Defaults ------------- #
 
 # gitHub actions
@@ -101,7 +108,6 @@ web_modules/
 
 # Nuxt.js build / generate output
 .nuxt
-dist
 
 # Gatsby files
 .cache/

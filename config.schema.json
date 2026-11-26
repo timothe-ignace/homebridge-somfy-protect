@@ -2,45 +2,45 @@
   "pluginAlias": "SomfyProtect",
   "pluginType": "accessory",
   "singular": true,
+  "headerDisplay": "Unofficial plugin. Your Somfy password is stored in plain text in Homebridge's config.json; protect that file accordingly.",
   "schema": {
     "type": "object",
     "properties": {
       "name": {
         "title": "Name",
         "type": "string",
-        "required": true,
-        "default": "Somfy Protect"
+        "default": "Somfy Protect",
+        "description": "Name of the accessory shown in HomeKit."
       },
       "username": {
         "title": "Username",
         "type": "string",
-        "required": true,
-        "description": "Your Somfy account username"
+        "description": "Your Somfy Protect account username (the e-mail used in the Somfy Protect app)."
       },
       "password": {
         "title": "Password",
         "type": "string",
-        "required": true,
-        "description": "Your Somfy account password"
+        "format": "password",
+        "x-schema-form": {
+          "type": "password"
+        },
+        "description": "Your Somfy Protect account password. Note: it is stored in plain text in config.json."
       },
       "loggingAmount": {
         "title": "Logging",
         "type": "integer",
         "default": 0,
-        "oneOf": [
-          {"title": "Off", "enum": [0]},
-          {"title": "Partial", "enum": [1]},
-          {"title": "Full", "enum": [2]}
-        ],
-        "required": true,
-        "description": "How much log do you want (partial will inform only about state changes, full will inform you about everything)"
+        "minimum": 0,
+        "maximum": 2,
+        "enum": [0, 1, 2],
+        "description": "0 = off, 1 = partial (state changes only), 2 = full (everything)."
       },
       "siteId": {
         "title": "Site ID",
         "type": "string",
-        "required": false,
-        "description": "If you have multiple homes set up on your somfy account, you can specify it's 'Site ID' here so that the plugin knows which home to use. See available site IDs in plugin logs."
+        "description": "Optional. If your Somfy account has several homes, set the 'Site ID' of the one to use. Available site IDs are listed in the plugin logs."
       }
-    }
+    },
+    "required": ["name", "username", "password"]
   }
 }

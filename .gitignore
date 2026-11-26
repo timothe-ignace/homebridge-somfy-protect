@@ -122,3 +122,6 @@ dist
 .idea
 
 token.json
+
+# Claude Code local files
+.claude
