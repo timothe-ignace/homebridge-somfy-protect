@@ -26,8 +26,6 @@ export default tseslint.config(
       "no-multi-spaces": ["warn", { "ignoreEOLComments": true }],
       "lines-between-class-members": ["warn", "always", { "exceptAfterSingleLine": true }],
       // Relaxed to keep the pre-existing code style (typescript-eslint v8 recommended is stricter than v5).
-      "@typescript-eslint/no-explicit-any": "off",
-      "@typescript-eslint/ban-ts-comment": "off",
       "@typescript-eslint/explicit-function-return-type": "off",
       "@typescript-eslint/no-non-null-assertion": "off",
       "@typescript-eslint/explicit-module-boundary-types": "off",

@@ -1,6 +1,6 @@
 import axios, {AxiosInstance, AxiosRequestConfig, AxiosResponse} from "axios";
 import {Logging} from "homebridge";
-import {LoggingAmount} from "./logging_amout";
+import {LoggingAmount} from "./logging_amount";
 
 const CLIENT_ID = "84eddf48-2b8e-11e5-b2a5-124cfab25595_475buqrf8v8kgwoo4gow08gkkc0ck80488wo44s8o48sg84k40";
 const CLIENT_SECRET = "4dsqfntieu0wckwwo40kw848gw4o0c8k4owc80k4go0cs0k844";
@@ -81,6 +81,7 @@ export class SomfyAPI {
   private token: Token | null = null;
   private tokenPromise: Promise<Token> | null = null;
   private readonly http: AxiosInstance;
+  private readonly requestStart = new WeakMap<object, [number, number]>();
 
   constructor(logger: Logging, config: SomfyAPIConfig) {
     this.logger = logger;
@@ -90,27 +91,23 @@ export class SomfyAPI {
     this.http = axios.create({timeout: REQUEST_TIMEOUT});
 
     this.http.interceptors.request.use(config => {
-      // @ts-ignore
-      config.headers["request-startTime"] = process.hrtime();
-      // @ts-ignore
-      config.headers["Content-Type"] = "application/json";
-      // @ts-ignore
-      config.headers["Accept-Encoding"] = "gzip";
+      // keep the timing locally, nothing is sent to Somfy
+      this.requestStart.set(config, process.hrtime());
+      config.headers.set("Content-Type", "application/json");
       return config;
     });
 
     this.http.interceptors.response.use(response => {
-      // @ts-ignore
-      const start = response.config.headers["request-startTime"];
-      // @ts-ignore
-      const end = process.hrtime(start);
-      const duration = Math.round((end[0] * 1000) + (end[1] / 1000000));
-      // logging
-      if (this.config.loggingAmount === LoggingAmount.FULL) {
-        this.logger.info(`${response.config.url} : ${duration} ms`);
+      const start = this.requestStart.get(response.config);
+      if (start) {
+        this.requestStart.delete(response.config);
+        const end = process.hrtime(start);
+        const duration = Math.round((end[0] * 1000) + (end[1] / 1000000));
+        // logging
+        if (this.config.loggingAmount === LoggingAmount.FULL) {
+          this.logger.info(`${response.config.url} : ${duration} ms`);
+        }
       }
-      // @ts-ignore
-      response.headers["request-duration"] = duration;
       return response;
     });
   }
@@ -214,18 +211,10 @@ export class SomfyAPI {
   }
 
   async getSite(siteId: string) {
-    return this.request("get", `/site/${siteId}`);
-  }
-
-  async getDevicesFromSiteId(siteId: string) {
-    return this.request("get", `/site/${siteId}/device`);
-  }
-
-  async getDevice(siteId: string, deviceId: string) {
-    return this.request("get", `/site/${siteId}/device/${deviceId}`);
+    return this.request("get", `/site/${encodeURIComponent(siteId)}`);
   }
 
   async setSecurityLevel(siteId: string, status: "disarmed" | "armed" | "partial") {
-    return this.request("put", `/site/${siteId}/security`, {status});
+    return this.request("put", `/site/${encodeURIComponent(siteId)}/security`, {status});
   }
 }

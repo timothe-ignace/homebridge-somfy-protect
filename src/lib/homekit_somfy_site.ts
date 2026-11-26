@@ -1,7 +1,7 @@
 import {Logging} from "homebridge";
 import {SomfyAPI, SomfyAPIError} from "./somfy_api";
 import {EventEmitter} from "events";
-import {LoggingAmount} from "./logging_amout";
+import {LoggingAmount} from "./logging_amount";
 import Timeout = NodeJS.Timeout;
 
 const POLL_INTERVAL = 10000;
