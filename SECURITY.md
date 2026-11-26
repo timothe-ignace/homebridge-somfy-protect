@@ -7,7 +7,7 @@ Only the latest release receives fixes.
 ## Reporting a vulnerability
 
 Please do not open a public issue. Use GitHub's private reporting:
-https://github.com/timothe-ignace/homebridge-somfy-protect/security/advisories/new
+https://github.com/timothe-ignace/homebridge-somfy-protect-v2/security/advisories/new
 
 You should get an answer within a few days. This is a volunteer-maintained project.
 

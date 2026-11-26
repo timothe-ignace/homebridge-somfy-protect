@@ -5,7 +5,7 @@ The automated checks (CI) only build and lint. Nothing in the repo talks to the 
 ## 1. API check (about a minute, read-only)
 
 ```
-git clone https://github.com/timothe-ignace/homebridge-somfy-protect && cd homebridge-somfy-protect
+git clone https://github.com/timothe-ignace/homebridge-somfy-protect-v2 && cd homebridge-somfy-protect-v2
 node scripts/live-check.mjs          # OAuth requests as JSON (what the plugin sends today)
 node scripts/live-check.mjs --form   # same, form-encoded (what RFC 6749 specifies)
 ```

@@ -1,6 +1,7 @@
 # homebridge-somfy-protect: maintenance context
 
 Maintained continuation of an unmaintained upstream project. Never open PRs against the upstream repository; work in this repository only.
+Repository: `homebridge-somfy-protect-v2` (renamed from `homebridge-somfy-protect` in 3.2.0; the old URL redirects).
 Homebridge dynamic platform plugin (TypeScript, since 3.0.0; an accessory plugin before) exposing the Somfy Protect (ex-MyFox) alarm of every site of an account as a HomeKit security system. Published on npm as `homebridge-somfy-protect-v2` (renamed from `homebridge-somfy-protect-alarm` in 3.2.0, which got 2.0.0 to 3.1.0; the original `homebridge-somfy-protect` belongs to the previous maintainer).
 Auth: OAuth2 password grant at `sso.myfox.io` with the public Somfy mobile-app client id/secret (hardcoded in `src/lib/somfy_api.ts`, overridable with `clientId`/`clientSecret`); API at `https://api.myfox.io/v3`.
 
@@ -31,7 +32,7 @@ Fixes: correct expiry, single-flight refresh, password-login fallback, one 401 r
 See `CHANGELOG.md` for the details.
 
 ## Releases
-Bump the version in `package.json`, update `CHANGELOG.md`, merge (PR title `chore(release): X.Y.Z`), then `gh release create vX.Y.Z`. `.github/workflows/release.yml` publishes to npm through trusted publishing (OIDC, with provenance, no token). The trusted publisher is configured per package on npmjs.com and must match the repository, the workflow filename `release.yml` and an empty environment; a mismatch gives `E403 OIDC permission denied`. First verified with 2.0.1. Run `scripts/live-check.mjs` before every release.
+Bump the version in `package.json`, update `CHANGELOG.md`, merge (PR title `chore(release): X.Y.Z`), then `gh release create vX.Y.Z`. `.github/workflows/release.yml` publishes to npm through trusted publishing (OIDC, with provenance, no token). The trusted publisher is configured per package on npmjs.com and must match the repository (`timothe-ignace/homebridge-somfy-protect-v2`), the workflow filename `release.yml` and an empty environment; a mismatch gives `E403 OIDC permission denied`. First verified with 2.0.1. Run `scripts/live-check.mjs` before every release.
 
 ## Open items
 Tracked as GitHub issues:
