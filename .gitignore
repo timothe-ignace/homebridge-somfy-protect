@@ -125,3 +125,5 @@ token.json
 
 # Claude Code local files
 .claude
+# Compiled tests
+.test-dist
