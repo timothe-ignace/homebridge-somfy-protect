@@ -1,8 +1,8 @@
 # Changelog
 
-## 1.2.0 (unreleased)
+## 2.0.0 (2026-11-26)
 
-Maintenance release after the original project went unmaintained. Published on npm as `homebridge-somfy-protect-alarm` (the original name belongs to the previous maintainer); the config is unchanged.
+First release of the maintained continuation of `homebridge-somfy-protect` (last upstream release 1.1.2), published on npm as `homebridge-somfy-protect-alarm` because the original name belongs to the previous maintainer. The plugin config is unchanged. Major version because the supported Node.js versions changed.
 
 ### Fixed
 - Uncaught `Request failed with status code 429` that killed the Homebridge child bridge. The token expiry was computed with `expires_in` (seconds) as milliseconds, so every API call refreshed the token and got rate limited.
