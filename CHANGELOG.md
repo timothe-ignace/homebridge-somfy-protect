@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- Sensors (experimental, `exposeSensors`, on by default): Somfy smoke detectors become HomeKit smoke sensors; the alarm shows tampered (a device cover is open) and fault (a device lost its radio link, or a detector error). The devices are read at most every 30 s; a refused device list never affects the alarm. See the README for what Somfy does not provide (no open/closed state on the detectors).
+
 ## 3.0.0 (2026-11-26)
 
 Tested on a real Somfy account and Homebridge (as a beta, `3.0.0-beta.1`) before this release.

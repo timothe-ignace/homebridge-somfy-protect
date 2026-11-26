@@ -1,11 +1,13 @@
 import {Logging} from "homebridge";
 import {SomfyAPI, SomfyAPIError} from "./somfy_api";
+import {SomfyDevice} from "./devices";
 import {LoggingAmount} from "./logging_amount";
 import {homekitStateToSomfySecurityLevel, SomfySite, somfySecurityLevelToHomekitState, State} from "./homekit_somfy_site";
 import Timeout = NodeJS.Timeout;
 
 const POLL_INTERVAL = 10000;
 const MAX_BACKOFF = 15 * 60 * 1000;
+const DEVICE_POLL_INTERVAL = 30000;
 
 export interface SomfyAccountConfig {
   username: string;
@@ -13,6 +15,8 @@ export interface SomfyAccountConfig {
   loggingAmount: LoggingAmount;
   /** sites to expose; empty or undefined means every site of the account */
   siteIds?: string[];
+  /** read the devices (smoke detectors, tamper, fault) in addition to the alarm state */
+  fetchDevices?: boolean;
   clientId?: string;
   clientSecret?: string;
   tokenFile?: string;
@@ -47,10 +51,12 @@ export class SomfyAccount {
   private commandsInFlight = 0;
   private failureCount = 0;
   private retryAfterMs = 0;
+  private fetchDevices: boolean;
 
   constructor(logger: Logging, config: SomfyAccountConfig) {
     this.logger = logger;
     this.config = config;
+    this.fetchDevices = config.fetchDevices === true;
 
     this.somfyAPI = new SomfyAPI(logger, {
       username: config.username,
@@ -163,7 +169,42 @@ export class SomfyAccount {
       });
       return site;
     });
+    if (this.fetchDevices) {
+      for (const site of this.sites) {
+        try {
+          await this.refreshDevices(site);
+        } catch (error: unknown) {
+          this.logger.warn(
+            `Could not read the devices of ${site.name}, sensors are skipped until Homebridge restarts: ${errorMessage(error)}`
+          );
+        }
+      }
+    }
     return true;
+  }
+
+  /**
+   * Reads the devices of a site. A permanent client error (not 401 / 429) switches the device reads off for this run so
+   * that the alarm itself keeps working; any other error is thrown (backoff, Retry-After).
+   */
+  private async refreshDevices(site: SomfySite) {
+    try {
+      const result = await this.somfyAPI.getDevices(site.siteId);
+      if (this.stopped) {
+        return;
+      }
+      const items: SomfyDevice[] = Array.isArray(result?.data?.items) ? result.data.items : [];
+      site.updateDevices(items);
+      site.lastDevicesAt = Date.now();
+    } catch (error: unknown) {
+      const status = error instanceof SomfyAPIError ? error.status : undefined;
+      if (status !== undefined && status >= 400 && status < 500 && status !== 401 && status !== 429) {
+        this.fetchDevices = false;
+        this.logger.warn(`Somfy refused to list the devices (HTTP ${status}); sensors are switched off until Homebridge restarts`);
+        return;
+      }
+      throw error;
+    }
   }
 
   private registerFailure(error: unknown) {
@@ -208,6 +249,9 @@ export class SomfyAccount {
           if (state !== undefined) {
             site.updateState(state);
           }
+        }
+        if (this.fetchDevices && !this.stopped && Date.now() - site.lastDevicesAt >= DEVICE_POLL_INTERVAL) {
+          await this.refreshDevices(site);
         }
       }
       if (this.failureCount > 0) {

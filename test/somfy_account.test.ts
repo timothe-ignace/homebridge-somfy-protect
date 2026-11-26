@@ -3,7 +3,7 @@ import {afterEach, beforeEach, describe, it, mock} from "node:test";
 import {SomfySite, State} from "../src/lib/homekit_somfy_site";
 import {SomfyAccount} from "../src/lib/somfy_account";
 import {LoggingAmount} from "../src/lib/logging_amount";
-import {fakeLogger, flush, isTokenCall, PASSWORD, RecordedCall, stubAxios, tokenResponse, USERNAME} from "./helpers";
+import {deviceFixtures, fakeLogger, flush, isTokenCall, PASSWORD, RecordedCall, stubAxios, tokenResponse, USERNAME} from "./helpers";
 
 describe("SomfyAccount", () => {
   const unhandled: unknown[] = [];
@@ -21,9 +21,11 @@ describe("SomfyAccount", () => {
     mock.restoreAll();
   });
 
-  function createSite(siteIds: string[] = []) {
+  function createSite(siteIds: string[] = [], fetchDevices = false) {
     const logger = fakeLogger();
-    const account = new SomfyAccount(logger, {username: USERNAME, password: PASSWORD, loggingAmount: LoggingAmount.FULL, siteIds});
+    const account = new SomfyAccount(logger, {
+      username: USERNAME, password: PASSWORD, loggingAmount: LoggingAmount.FULL, siteIds, fetchDevices
+    });
     const discovered: SomfySite[][] = [];
     account.onDiscovered((sites) => discovered.push(sites));
     account.start();
@@ -245,5 +247,93 @@ describe("SomfyAccount", () => {
     assert.equal(discovered[0][0].getTargetState(), State.AWAY_ARM);
     assert.ok(logger.lines.some(line => line.includes("Could not set the security level")));
     assert.deepEqual(unhandled, []);
+  });
+
+  describe("devices", () => {
+    function devicesStub(deviceHandler: () => { status?: number; data?: unknown }) {
+      return stubAxios(call => {
+        if (isTokenCall(call)) {
+          return tokenResponse();
+        }
+        if (call.url.endsWith("/device")) {
+          return deviceHandler();
+        }
+        return call.url.endsWith("/site") ? {data: sitesBody} : {data: {security_level: "armed"}};
+      });
+    }
+
+    it("reads the devices at discovery, then at most every 30 s", async () => {
+      let smoke = false;
+      const stub = devicesStub(() => ({data: {items: deviceFixtures({smoke})}}));
+      const created = createSite([], true);
+      await flush();
+      const site = created.site;
+      assert.equal(countPath(stub.calls, "/device"), 1);
+      assert.equal(site.getDevicesView().smokeDetectors.length, 1);
+      let notifications = 0;
+      site.onDevicesChange(() => notifications++);
+
+      smoke = true;
+      mock.timers.tick(0); // first alarm poll: the devices were read a moment ago
+      await flush();
+      mock.timers.tick(10000);
+      await flush();
+      mock.timers.tick(10000);
+      await flush();
+      assert.equal(countPath(stub.calls, "/device"), 1);
+
+      mock.timers.tick(10000); // 30 s after the first read
+      await flush();
+      assert.equal(countPath(stub.calls, "/device"), 2);
+      assert.equal(site.getDevicesView().smokeDetectors[0].smoke, true);
+      assert.equal(notifications, 1);
+      assert.deepEqual(unhandled, []);
+    });
+
+    it("does not read the devices unless asked to", async () => {
+      const stub = devicesStub(() => ({data: {items: deviceFixtures()}}));
+      createSite();
+      await flush();
+      mock.timers.tick(60000);
+      await flush();
+      assert.equal(countPath(stub.calls, "/device"), 0);
+    });
+
+    it("keeps the alarm working when the device list is refused", async () => {
+      const stub = devicesStub(() => ({status: 403}));
+      const {logger, discovered} = createSite([], true);
+      await flush();
+      assert.equal(discovered.length, 1, "the alarm is discovered");
+      assert.ok(logger.lines.some(line => line.includes("sensors are switched off")));
+      mock.timers.tick(120000);
+      await flush();
+      assert.equal(countPath(stub.calls, "/device"), 1, "no further attempts");
+      assert.ok(countPath(stub.calls, "/site/s1") >= 1, "the alarm is still polled");
+      assert.deepEqual(unhandled, []);
+    });
+
+    it("backs off when the device list is rate limited", async () => {
+      let limited = false;
+      const stub = devicesStub(() => limited ? {status: 429, headers: {"retry-after": "300"}} : {data: {items: deviceFixtures()}});
+      const {logger} = createSite([], true);
+      await flush();
+      limited = true;
+      mock.timers.tick(0);
+      await flush();
+      mock.timers.tick(30000); // next device read is due and gets 429
+      await flush();
+      mock.timers.tick(10000);
+      await flush();
+      mock.timers.tick(10000);
+      await flush();
+      mock.timers.tick(10000);
+      await flush();
+      assert.ok(logger.lines.some(line => line.includes("Poll failed")));
+      const before = countPath(stub.calls, "/site/s1");
+      mock.timers.tick(200000);
+      await flush();
+      assert.equal(countPath(stub.calls, "/site/s1"), before, "waits for Retry-After");
+      assert.deepEqual(unhandled, []);
+    });
   });
 });

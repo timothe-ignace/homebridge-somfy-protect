@@ -66,9 +66,21 @@ HomeKit will see the alarm as a **new accessory**: rooms, scenes and automations
 | `password` | yes | Your Somfy Protect account password. |
 | `loggingAmount` | no | `0` = off (default), `1` = partial (state changes only), `2` = full. Other values fall back to `0`. |
 | `siteIds` | no | List of the homes (sites) to add. Empty or missing: all homes of the account. Available IDs are listed in the plugin logs. |
+| `exposeSensors` | no | `true` (default): your smoke detectors appear as HomeKit smoke sensors, and the alarm shows tamper and fault status. `false`: the devices are not read at all. **Experimental**, see below. |
 | `clientId` / `clientSecret` | no | Override the built-in OAuth client (the public Somfy mobile app client). Must be set together. Useful if Somfy revokes the built-in client (the log then reports `invalid_client`). |
 
 If `username` or `password` is missing or empty, the plugin logs a clear error and does not connect, but Homebridge keeps running.
+
+## Sensors (experimental)
+
+With `exposeSensors` on (the default), the plugin also reads the devices of each home (at most every 30 seconds):
+
+- **Smoke detectors** become HomeKit smoke sensors (smoke detected, low battery, fault).
+- The **alarm** shows *tampered* when a device cover is reported open, and *fault* when a device lost its radio link or a smoke detector reports an internal error.
+
+What Somfy does **not** provide: the opening and vibration detectors ("tags") report no open or closed state, so they cannot be shown as door or window sensors. Sirens, keypads, the box, remotes and cameras report only battery and connectivity (cameras also a shutter state) and are not exposed.
+
+This was built from the structure Somfy returns on a real account. The values reported during a real smoke or tamper event have not been verified, so treat the sensors as a bonus and not as your only smoke alarm. Please report what you see.
 
 ## Security notes
 

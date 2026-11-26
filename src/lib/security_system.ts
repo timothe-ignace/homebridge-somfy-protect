@@ -78,6 +78,18 @@ export function attachSecuritySystem(
       }
     });
 
+  // the devices of the site: a device cover opened is a tamper, a lost device or a detector error is a fault
+  const {TAMPERED, NOT_TAMPERED} = Characteristic.StatusTampered;
+  const tamperedValue = (tampered: boolean) => tampered ? TAMPERED : NOT_TAMPERED;
+  const faultValue = (fault: boolean) => fault ? Characteristic.StatusFault.GENERAL_FAULT : Characteristic.StatusFault.NO_FAULT;
+  service.getCharacteristic(Characteristic.StatusTampered).onGet(() => tamperedValue(site.getDevicesView().tampered));
+  service.getCharacteristic(Characteristic.StatusFault).onGet(() => faultValue(site.getDevicesView().fault));
+  site.onDevicesChange(() => {
+    const view = site.getDevicesView();
+    service.updateCharacteristic(Characteristic.StatusTampered, tamperedValue(view.tampered));
+    service.updateCharacteristic(Characteristic.StatusFault, faultValue(view.fault));
+  });
+
   site.onCurrentStateChange(() => {
     if (site.isInitialized()) {
       service.updateCharacteristic(Characteristic.SecuritySystemCurrentState, site.getCurrentState());

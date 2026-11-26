@@ -61,6 +61,12 @@
           "type": "string"
         },
         "description": "Optional. By default every home (site) of your Somfy account is added. To add only some of them, list their site IDs here. Available site IDs are listed in the plugin logs."
+      },
+      "exposeSensors": {
+        "title": "Sensors",
+        "type": "boolean",
+        "default": true,
+        "description": "Add the smoke detectors of your Somfy system as HomeKit smoke sensors, and show tamper and fault status on the alarm. Experimental: the values Somfy reports during a real smoke or tamper event have not been verified. Turn off to stop reading the devices."
       }
     },
     "required": [

@@ -316,6 +316,10 @@ export class SomfyAPI {
     return this.request("get", `/site/${encodeURIComponent(siteId)}`);
   }
 
+  async getDevices(siteId: string) {
+    return this.request("get", `/site/${encodeURIComponent(siteId)}/device`);
+  }
+
   async setSecurityLevel(siteId: string, status: "disarmed" | "armed" | "partial") {
     return this.request("put", `/site/${encodeURIComponent(siteId)}/security`, {status});
   }

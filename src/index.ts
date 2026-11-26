@@ -5,6 +5,7 @@ import {SomfySite} from "./lib/homekit_somfy_site";
 import {SomfyAccount} from "./lib/somfy_account";
 import {validateConfig} from "./lib/config";
 import {attachSecuritySystem} from "./lib/security_system";
+import {attachSmokeSensor} from "./lib/smoke_sensor";
 
 const PLUGIN_VERSION: string = JSON.parse(readFileSync(join(__dirname, "..", "package.json"), "utf8")).version;
 
@@ -50,34 +51,31 @@ class SomfyProtectPlatform implements DynamicPlatformPlugin {
       password: config.password,
       loggingAmount: config.loggingAmount,
       siteIds: config.siteIds,
+      fetchDevices: config.exposeSensors,
       clientId: config.clientId,
       clientSecret: config.clientSecret,
       tokenFile: join(this.api.user.storagePath(), TOKEN_FILE_NAME)
     });
     this.account = account;
-    account.onDiscovered((sites) => this.syncAccessories(sites, config.loggingAmount));
+    account.onDiscovered((sites) => this.syncAccessories(sites, config.loggingAmount, config.exposeSensors));
     account.start();
   }
 
   /*
-   * One accessory per site: restore the cached one or create it, and remove the ones whose site is gone.
+   * One security system per site and one smoke sensor per smoke detector: restore the cached accessory or create it,
+   * and remove the ones whose site or detector is gone.
    */
-  private syncAccessories(sites: SomfySite[], loggingAmount: number) {
-    const {hap} = this.api;
+  private syncAccessories(sites: SomfySite[], loggingAmount: number, exposeSensors: boolean) {
     const used = new Set<string>();
     for (const site of sites) {
-      const uuid = hap.uuid.generate(`somfy-protect:${site.siteId}`);
-      used.add(uuid);
-      let accessory = this.cachedAccessories.get(uuid);
-      if (accessory) {
-        this.logger.info(`Restoring accessory from cache: ${site.name}`);
-      } else {
-        this.logger.info(`Adding accessory: ${site.name}`);
-        accessory = new this.api.platformAccessory(site.name, uuid);
-        this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
-        this.cachedAccessories.set(uuid, accessory);
-      }
+      const accessory = this.accessoryFor(`somfy-protect:${site.siteId}`, site.name, used);
       attachSecuritySystem(this.api, this.logger, accessory, site, loggingAmount, PLUGIN_VERSION);
+      if (exposeSensors) {
+        for (const detector of site.getDevicesView().smokeDetectors) {
+          const sensor = this.accessoryFor(`somfy-protect:${site.siteId}:${detector.deviceId}`, detector.name, used);
+          attachSmokeSensor(this.api, this.logger, sensor, site, detector.deviceId, PLUGIN_VERSION);
+        }
+      }
     }
 
     const stale = [...this.cachedAccessories.entries()].filter(([uuid]) => !used.has(uuid));
@@ -86,6 +84,21 @@ class SomfyProtectPlatform implements DynamicPlatformPlugin {
       this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, stale.map(([, accessory]) => accessory));
       stale.forEach(([uuid]) => this.cachedAccessories.delete(uuid));
     }
+  }
+
+  private accessoryFor(seed: string, name: string, used: Set<string>): PlatformAccessory {
+    const uuid = this.api.hap.uuid.generate(seed);
+    used.add(uuid);
+    let accessory = this.cachedAccessories.get(uuid);
+    if (accessory) {
+      this.logger.info(`Restoring accessory from cache: ${name}`);
+    } else {
+      this.logger.info(`Adding accessory: ${name}`);
+      accessory = new this.api.platformAccessory(name, uuid);
+      this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
+      this.cachedAccessories.set(uuid, accessory);
+    }
+    return accessory;
   }
 
   /*

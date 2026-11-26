@@ -1,4 +1,5 @@
 import {EventEmitter} from "events";
+import {DevicesView, SomfyDevice, viewDevices} from "./devices";
 
 export enum State {
   AWAY_ARM = 1,
@@ -17,6 +18,9 @@ export class SomfySite {
   private currentState: State | null = null;
   private targetState: State | null = null;
   private readonly emitter = new EventEmitter();
+  private devicesView: DevicesView = {smokeDetectors: [], tampered: false, fault: false};
+  /** @internal time of the last successful device read */
+  lastDevicesAt = 0;
 
   constructor(readonly siteId: string, readonly name: string, private readonly sendTargetState: SendTargetState) {
   }
@@ -54,6 +58,24 @@ export class SomfySite {
 
   offCurrentStateChange(callback: () => void) {
     this.emitter.removeListener("currentStateChange", callback);
+  }
+
+  getDevicesView(): DevicesView {
+    return this.devicesView;
+  }
+
+  onDevicesChange(callback: () => void) {
+    this.emitter.addListener("devicesChange", callback);
+  }
+
+  /** @internal The devices seen by a read; notifies only when what HomeKit shows has changed. */
+  updateDevices(devices: SomfyDevice[]) {
+    const view = viewDevices(devices);
+    const changed = JSON.stringify(view) !== JSON.stringify(this.devicesView);
+    this.devicesView = view;
+    if (changed) {
+      this.emitter.emit("devicesChange");
+    }
   }
 
   /** @internal Sets the first known state, without notification. */
