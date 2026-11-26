@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.0.1 (2026-11-26)
+
+### Added
+- The plugin logs a warning (once per value) when Somfy reports an `alarm.status` other than `none`. The values during a real trigger are not known yet, so they are not mapped to HomeKit; please report the logged value in issue #6.
+- `scripts/live-check.mjs` prints the nested structure of the site's `alarm` and `mfa_*` fields.
+
+### Verified
+- Against a real owner account: the built-in OAuth client works, `expires_in` is in seconds (1800), and both JSON and form-encoded token requests are accepted.
+
 ## 2.0.0 (2026-11-26)
 
 First release of the maintained continuation of `homebridge-somfy-protect` (last upstream release 1.1.2), published on npm as `homebridge-somfy-protect-alarm` because the original name belongs to the previous maintainer. The plugin config is unchanged. Major version because the supported Node.js versions changed.

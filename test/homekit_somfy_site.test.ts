@@ -74,6 +74,30 @@ describe("HomekitSomfySite", () => {
     assert.equal(site.getCurrentState(), State.NIGHT_ARM);
   });
 
+  it("warns once about an alarm status other than none, and not for none", async () => {
+    let alarm: unknown = {status: "none"};
+    stubAxios(call => {
+      if (isTokenCall(call)) {
+        return tokenResponse();
+      }
+      return call.url.endsWith("/site") ? {data: sitesBody} : {data: {security_level: "armed", alarm}};
+    });
+    const {logger} = createSite();
+    await flush();
+    mock.timers.tick(0);
+    await flush();
+    const warnings = () => logger.lines.filter(line => line.includes("alarm status"));
+    assert.equal(warnings().length, 0);
+
+    alarm = {status: "pending_test"};
+    for (let i = 0; i < 2; i++) {
+      mock.timers.tick(10000);
+      await flush();
+    }
+    assert.equal(warnings().length, 1);
+    assert.ok(warnings()[0].includes("pending_test"));
+  });
+
   it("retries with a growing backoff when the siteId is unknown", async () => {
     const stub = stubAxios(call => isTokenCall(call) ? tokenResponse() : {data: sitesBody});
     const {site, logger} = createSite("does-not-exist");

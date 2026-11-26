@@ -45,6 +45,7 @@ export class HomekitSomfySite {
   private polling = false;
   private stopped = false;
   private readonly warnedLevels = new Set<string>();
+  private readonly warnedAlarmStatuses = new Set<string>();
   private pollingStopped = false;
   private commandsInFlight = 0;
   private failureCount = 0;
@@ -193,6 +194,7 @@ export class HomekitSomfySite {
         return;
       }
       const security_level = result?.data?.security_level;
+      this.reportAlarmStatus(result?.data?.alarm?.status);
       if (this.failureCount > 0) {
         this.logger.info("Connection to somfy restored");
       }
@@ -288,6 +290,20 @@ export class HomekitSomfySite {
       this.logger.warn(`Unknown security level "${securityLevel}" received from somfy, keeping the previous state`);
     }
     return state;
+  }
+
+  /**
+   * `alarm.status` is "none" while idle. Its values during a trigger are not known yet (see issue #6), so they are not
+   * mapped to HomeKit: warn once per distinct value so that it can be reported.
+   */
+  private reportAlarmStatus(status: unknown) {
+    if (typeof status === "string" && status !== "none" && !this.warnedAlarmStatuses.has(status)) {
+      this.warnedAlarmStatuses.add(status);
+      this.logger.warn(
+        `Somfy reports alarm status "${status}". It is not shown in HomeKit yet; please report this value in ` +
+        "https://github.com/timothe-ignace/homebridge-somfy-protect/issues/6"
+      );
+    }
   }
 
   getCurrentState(): State {
