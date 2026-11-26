@@ -1,4 +1,7 @@
 import axios, {AxiosInstance, AxiosRequestConfig, AxiosResponse} from "axios";
+import {createHash} from "crypto";
+import {chmodSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync} from "fs";
+import {dirname} from "path";
 import {Logging} from "homebridge";
 import {LoggingAmount} from "./logging_amount";
 
@@ -15,6 +18,9 @@ interface SomfyAPIConfig {
   username: string;
   password: string;
   loggingAmount: LoggingAmount;
+  clientId?: string; // defaults to the built-in Somfy mobile app client
+  clientSecret?: string;
+  tokenFile?: string; // when set, the OAuth token is persisted there (mode 0600)
 }
 
 interface Token {
@@ -31,9 +37,11 @@ export class SomfyAPIError extends Error {
 
   readonly status?: number;
   readonly retryAfterMs?: number;
+  readonly oauthError?: string; // OAuth "error" code of the response body, e.g. invalid_client
 
-  constructor(message: string, status?: number, retryAfterMs?: number) {
+  constructor(message: string, status?: number, retryAfterMs?: number, oauthError?: string) {
     super(message);
+    this.oauthError = oauthError;
     this.name = "SomfyAPIError";
     this.status = status;
     this.retryAfterMs = retryAfterMs;
@@ -55,7 +63,7 @@ function parseRetryAfter(value: unknown): number | undefined {
 interface AxiosLikeError {
   message?: unknown;
   code?: unknown;
-  response?: {status?: number; headers?: Record<string, unknown>};
+  response?: {status?: number; headers?: Record<string, unknown>; data?: {error?: unknown}};
 }
 
 function toAPIError(raw: unknown): SomfyAPIError {
@@ -70,7 +78,10 @@ function toAPIError(raw: unknown): SomfyAPIError {
   if (status === undefined && typeof error?.code === "string") {
     message += ` (${error.code})`;
   }
-  return new SomfyAPIError(message, status, retryAfterMs);
+  // only the short OAuth error code is kept, never the rest of the body
+  const rawCode = error?.response?.data?.error;
+  const oauthError = typeof rawCode === "string" && /^[a-z_]{1,64}$/.test(rawCode) ? rawCode : undefined;
+  return new SomfyAPIError(message, status, retryAfterMs, oauthError);
 }
 
 export class SomfyAPI {
@@ -82,10 +93,15 @@ export class SomfyAPI {
   private tokenPromise: Promise<Token> | null = null;
   private readonly http: AxiosInstance;
   private readonly requestStart = new WeakMap<object, [number, number]>();
+  private readonly clientId: string;
+  private readonly clientSecret: string;
 
   constructor(logger: Logging, config: SomfyAPIConfig) {
     this.logger = logger;
     this.config = config;
+    this.clientId = config.clientId || CLIENT_ID;
+    this.clientSecret = config.clientSecret || CLIENT_SECRET;
+    this.token = this.loadToken();
 
     // dedicated instance, so that the global axios instance (shared with other plugins) is left untouched
     this.http = axios.create({timeout: REQUEST_TIMEOUT});
@@ -114,7 +130,7 @@ export class SomfyAPI {
 
   private async requestToken(body: Record<string, string>): Promise<Token> {
     try {
-      const response = await this.http.post(TOKEN_URL, {client_id: CLIENT_ID, client_secret: CLIENT_SECRET, ...body});
+      const response = await this.http.post(TOKEN_URL, {client_id: this.clientId, client_secret: this.clientSecret, ...body});
       if (!response.data?.access_token) {
         throw new SomfyAPIError("Token response did not contain an access token");
       }
@@ -129,7 +145,83 @@ export class SomfyAPI {
     if (this.config.loggingAmount === LoggingAmount.FULL) {
       this.logger.info("Getting a new token");
     }
-    return this.requestToken({username: this.config.username, password: this.config.password, grant_type: "password"});
+    try {
+      return await this.requestToken({username: this.config.username, password: this.config.password, grant_type: "password"});
+    } catch (error: unknown) {
+      const apiError = toAPIError(error);
+      if (apiError.oauthError === "invalid_client") {
+        this.logger.error("Somfy rejected the OAuth client (invalid_client): the client id/secret was revoked or is wrong. " +
+          "Set valid \"clientId\" and \"clientSecret\" in the plugin config.");
+      } else if (apiError.oauthError === "invalid_grant" || apiError.status === 400 || apiError.status === 401) {
+        const reason = apiError.oauthError ?? `HTTP ${apiError.status}`;
+        this.logger.error(`Somfy rejected the login (${reason}): check username and password.`);
+      }
+      throw apiError;
+    }
+  }
+
+  // Identifies the account and client a stored token belongs to (hashed, so no credentials end up on disk in clear).
+  private tokenOwner(): string {
+    return createHash("sha256").update(`${this.config.username}\n${this.clientId}`).digest("hex");
+  }
+
+  private loadToken(): Token | null {
+    if (!this.config.tokenFile) {
+      return null;
+    }
+    try {
+      const data = JSON.parse(readFileSync(this.config.tokenFile, "utf8"));
+      const token = data?.token;
+      if (data?.owner !== this.tokenOwner() || typeof token?.access_token !== "string" || !token.access_token ||
+        typeof token.issuance !== "number" || !isFinite(token.issuance) ||
+        (token.refresh_token !== undefined && typeof token.refresh_token !== "string") ||
+        (token.expires_in !== undefined && typeof token.expires_in !== "number")) {
+        return null;
+      }
+      return {
+        access_token: token.access_token,
+        refresh_token: token.refresh_token,
+        expires_in: token.expires_in,
+        issuance: token.issuance
+      };
+    } catch {
+      return null; // missing, unreadable or corrupt: ignore
+    }
+  }
+
+  private saveToken(token: Token): void {
+    const file = this.config.tokenFile;
+    if (!file) {
+      return;
+    }
+    const tmp = `${file}.${process.pid}.tmp`;
+    try {
+      mkdirSync(dirname(file), {recursive: true});
+      writeFileSync(tmp, JSON.stringify({owner: this.tokenOwner(), token}), {mode: 0o600});
+      chmodSync(tmp, 0o600);
+      renameSync(tmp, file);
+    } catch (error: unknown) {
+      // never include the error message verbatim beyond its code: it must not leak token data
+      const code = (error as {code?: unknown})?.code;
+      const suffix = typeof code === "string" ? ` (${code})` : "";
+      this.logger.warn(`Could not store the token on disk${suffix}; it will be requested again after a restart`);
+      try {
+        unlinkSync(tmp);
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  private deleteStoredToken(): void {
+    if (!this.config.tokenFile) {
+      return;
+    }
+    try {
+      unlinkSync(this.config.tokenFile);
+    } catch {
+      // ignore (already gone)
+    }
   }
 
   private async getRefreshToken(refreshToken: string): Promise<Token> {
@@ -174,7 +266,16 @@ export class SomfyAPI {
       this.tokenPromise = this.renewToken()
         .then(token => {
           this.token = token;
+          this.saveToken(token);
           return token;
+        })
+        .catch(error => {
+          // the stored token (and its refresh token) is no longer accepted
+          if (error instanceof SomfyAPIError && (error.status === 400 || error.status === 401 || error.status === 403)) {
+            this.token = null;
+            this.deleteStoredToken();
+          }
+          throw error;
         })
         .finally(() => {
           this.tokenPromise = null;
@@ -198,6 +299,7 @@ export class SomfyAPI {
           // token rejected (e.g. revoked): drop it, the next attempt will log in again
           if (this.token === token) {
             this.token = null;
+            this.deleteStoredToken();
           }
           continue;
         }

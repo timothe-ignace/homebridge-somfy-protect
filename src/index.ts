@@ -14,16 +14,19 @@ import {LoggingAmount} from "./lib/logging_amount";
 
 const PLUGIN_VERSION: string = JSON.parse(readFileSync(join(__dirname, "..", "package.json"), "utf8")).version;
 
+const TOKEN_FILE_NAME = "somfy-protect-token.json";
 const MODEL = "Somfy Protect";
 const DEFAULT_SERIAL_NUMBER = "Default-SerialNumber";
 
 let hap: HAP;
+let storagePath: string | undefined;
 
 /*
  * Initializer function called when the plugin is loaded.
  */
 export = (api: API) => {
   hap = api.hap;
+  storagePath = api.user.storagePath();
   api.registerAccessory("SomfyProtect", SomfyProtect);
 };
 
@@ -32,6 +35,8 @@ interface ValidatedConfig {
   password: string;
   loggingAmount: LoggingAmount;
   siteId?: string;
+  clientId?: string;
+  clientSecret?: string;
 }
 
 function isNonEmptyString(value: unknown): value is string {
@@ -61,6 +66,18 @@ function validateConfig(config: AccessoryConfig): { config?: ValidatedConfig; er
     }
   }
 
+  // optional OAuth client override: both or none
+  const clientId = isNonEmptyString(config.clientId) ? config.clientId.trim() : undefined;
+  const clientSecret = isNonEmptyString(config.clientSecret) ? config.clientSecret.trim() : undefined;
+  for (const [key, value] of [["clientId", config.clientId], ["clientSecret", config.clientSecret]]) {
+    if (value !== undefined && value !== null && value !== "" && !isNonEmptyString(value)) {
+      errors.push(`"${key}" must be a string when specified`);
+    }
+  }
+  if ((clientId === undefined) !== (clientSecret === undefined) && errors.length === 0) {
+    errors.push("\"clientId\" and \"clientSecret\" must be set together (or both left empty to use the built-in client)");
+  }
+
   // loggingAmount: coerced to 0 / 1 / 2, default 0
   let loggingAmount = LoggingAmount.OFF;
   if (config.loggingAmount !== undefined && config.loggingAmount !== null && config.loggingAmount !== "") {
@@ -79,7 +96,9 @@ function validateConfig(config: AccessoryConfig): { config?: ValidatedConfig; er
       username: (config.username as string).trim(),
       password: config.password as string,
       loggingAmount,
-      siteId
+      siteId,
+      clientId,
+      clientSecret
     }
   };
 }
@@ -130,7 +149,10 @@ class SomfyProtect implements AccessoryPlugin {
         username: siteConfig.username,
         password: siteConfig.password,
         loggingAmount: siteConfig.loggingAmount,
-        siteId: siteConfig.siteId as string
+        siteId: siteConfig.siteId as string,
+        clientId: siteConfig.clientId,
+        clientSecret: siteConfig.clientSecret,
+        tokenFile: storagePath ? join(storagePath, TOKEN_FILE_NAME) : undefined
       });
       this.somfySite = site;
       api.on("shutdown", () => site.stop());
