@@ -1,6 +1,6 @@
 <p align="center">
 
-<img src="https://github.com/homebridge/branding/raw/master/logos/homebridge-wordmark-logo-vertical.png" width="150">
+<img src="https://raw.githubusercontent.com/homebridge/branding/latest/logos/homebridge-wordmark-logo-vertical.png" width="150">
 
 </p>
 
@@ -75,13 +75,21 @@ Somfy's opening and vibration detectors do not report open or closed, so they ca
 
 ## Upgrading
 
-<details>
-<summary>From 2.x of this plugin (version 3 changes the config format)</summary>
+A short history, so you know which steps apply to you:
 
-Version 3 is a Homebridge *platform*. Change your `config.json` once:
+| Version | What it is |
+|---------|------------|
+| 1.x | The original plugin, `homebridge-somfy-protect`, no longer maintained. |
+| 2.x | The start of this fork, published as `homebridge-somfy-protect-alarm` because the original name belongs to the previous maintainer. Same config as 1.x, with fixes and updated dependencies. |
+| 3.x | The plugin became a Homebridge *platform*, so the config format changed (below). It now adds every home of your account, plus the smoke sensors. |
+
+<details>
+<summary>From 2.x of this plugin</summary>
+
+Change your `config.json` once:
 
 1. Remove the `{"accessory": "SomfyProtect", ...}` entry from `accessories`.
-2. Add the `{"platform": "SomfyProtect", ...}` entry shown above to `platforms`. Your `username`, `password` and other settings carry over. A single `siteId` is still read, but `siteIds` is preferred.
+2. Add the `{"platform": "SomfyProtect", ...}` entry shown in "Set up" to `platforms`. Your `username`, `password` and other settings carry over. A single `siteId` is still read, but `siteIds` is preferred.
 3. Restart Homebridge. The log warns if the old entry is still there.
 
 Home sees the alarm as a **new accessory**, so recreate the rooms, scenes and automations that used the old one, then remove the old accessory.
@@ -89,9 +97,9 @@ Home sees the alarm as a **new accessory**, so recreate the rooms, scenes and au
 </details>
 
 <details>
-<summary>From the original <code>homebridge-somfy-protect</code> (no longer maintained)</summary>
+<summary>From the original <code>homebridge-somfy-protect</code> (1.x)</summary>
 
-This plugin continues it under a new npm name. Uninstall the old one with `npm uninstall -g homebridge-somfy-protect`, install this one, and use the `platforms` entry from "Set up".
+Uninstall the old plugin with `npm uninstall -g homebridge-somfy-protect`, install this one, and replace your old `accessories` entry with the `platforms` entry from "Set up" (same `username` and `password`). As above, Home sees the alarm as a new accessory.
 
 </details>
 
