@@ -109,7 +109,7 @@ class SomfyProtect implements AccessoryPlugin {
   private readonly informationService: Service;
   private readonly securitySystemService: Service;
 
-  constructor(logger: Logging, config: AccessoryConfig) {
+  constructor(logger: Logging, config: AccessoryConfig, api: API) {
     this.logger = logger;
 
     const validation = validateConfig(config);
@@ -126,12 +126,14 @@ class SomfyProtect implements AccessoryPlugin {
 
     if (validation.config) {
       const siteConfig = validation.config;
-      this.somfySite = new HomekitSomfySite(logger, {
+      const site = new HomekitSomfySite(logger, {
         username: siteConfig.username,
         password: siteConfig.password,
         loggingAmount: siteConfig.loggingAmount,
         siteId: siteConfig.siteId as string
       });
+      this.somfySite = site;
+      api.on("shutdown", () => site.stop());
     } else {
       validation.errors.forEach((error) => logger.error(`Invalid configuration: ${error}`));
       logger.error("The plugin will not connect to Somfy until the configuration is fixed and Homebridge is restarted.");

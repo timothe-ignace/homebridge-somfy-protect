@@ -40,6 +40,8 @@ export class HomekitSomfySite {
   private timeout: Timeout | null = null;
   private initTimeout: Timeout | null = null;
   private polling = false;
+  private stopped = false;
+  private readonly warnedLevels = new Set<string>();
   private pollingStopped = false;
   private commandsInFlight = 0;
   private failureCount = 0;
@@ -73,9 +75,15 @@ export class HomekitSomfySite {
     try {
       success = await this.initialize();
     } catch (error: unknown) {
+      if (this.stopped) {
+        return;
+      }
       threw = true;
       this.registerFailure(error);
       this.logger.error(`Could not initialize: ${errorMessage(error)}`);
+    }
+    if (this.stopped) {
+      return;
     }
     if (success) {
       this.failureCount = 0;
@@ -118,9 +126,11 @@ export class HomekitSomfySite {
       this.siteId = site.site_id;
       // set current state
       if (site.security_level) {
-        const currentState = somfySecurityLevelToHomekitState(site.security_level);
-        this.currentState = currentState;
-        this.targetState = currentState;
+        const currentState = this.mapSecurityLevel(site.security_level);
+        if (currentState !== undefined) {
+          this.currentState = currentState;
+          this.targetState = currentState;
+        }
       }
       return this.isInitialized();
     }
@@ -173,6 +183,9 @@ export class HomekitSomfySite {
     this.polling = true;
     try {
       const result = await this.somfyAPI.getSite(this.siteId);
+      if (this.stopped) {
+        return;
+      }
       const security_level = result?.data?.security_level;
       if (this.failureCount > 0) {
         this.logger.info("Connection to somfy restored");
@@ -185,10 +198,15 @@ export class HomekitSomfySite {
         if (this.config.loggingAmount === LoggingAmount.FULL) {
           this.logger.info("Poll security level with success, getting:", security_level);
         }
-        const state = somfySecurityLevelToHomekitState(security_level);
-        this.setCurrentState(state);
+        const state = this.mapSecurityLevel(security_level);
+        if (state !== undefined) {
+          this.setCurrentState(state);
+        }
       }
     } catch (error: unknown) {
+      if (this.stopped) {
+        return;
+      }
       this.registerFailure(error);
       const delay = Math.round(this.nextDelay() / 1000);
       this.logger.error(`Poll failed (attempt ${this.failureCount}), retrying in ${delay} s: ${errorMessage(error)}`);
@@ -199,7 +217,7 @@ export class HomekitSomfySite {
   }
 
   private scheduleNextPoll(delay?: number) {
-    if (this.pollingStopped || this.commandsInFlight > 0) {
+    if (this.stopped || this.pollingStopped || this.commandsInFlight > 0) {
       return;
     }
     if (this.timeout !== null) {
@@ -212,7 +230,7 @@ export class HomekitSomfySite {
   }
 
   private startPolling() {
-    if (this.isInitialized()) {
+    if (!this.stopped && this.isInitialized()) {
       this.pollingStopped = false;
       if (this.timeout === null && !this.polling) {
         this.scheduleNextPoll(0);
@@ -236,6 +254,34 @@ export class HomekitSomfySite {
         this.logger.info("stopPolling: Polling already stopped");
       }
     }
+  }
+
+  /**
+   * Stops all timers; in-flight results and rescheduling become no-ops. Call on Homebridge shutdown.
+   */
+  stop() {
+    this.stopped = true;
+    if (this.timeout !== null) {
+      clearTimeout(this.timeout);
+      this.timeout = null;
+    }
+    if (this.initTimeout !== null) {
+      clearTimeout(this.initTimeout);
+      this.initTimeout = null;
+    }
+  }
+
+  /**
+   * Maps a Somfy security level; for an unknown value warns once per distinct value and returns undefined
+   * so that the caller keeps the previous state.
+   */
+  private mapSecurityLevel(securityLevel: string): State | undefined {
+    const state = somfySecurityLevelToHomekitState(securityLevel);
+    if (state === undefined && !this.warnedLevels.has(securityLevel)) {
+      this.warnedLevels.add(securityLevel);
+      this.logger.warn(`Unknown security level "${securityLevel}" received from somfy, keeping the previous state`);
+    }
+    return state;
   }
 
   getCurrentState(): State {
@@ -315,7 +361,7 @@ export class HomekitSomfySite {
 
 }
 
-function somfySecurityLevelToHomekitState(securityLevel: "disarmed" | "armed" | "partial"): State {
+function somfySecurityLevelToHomekitState(securityLevel: string): State | undefined {
   switch (securityLevel) {
     case "armed":
       return State.AWAY_ARM;
@@ -323,6 +369,8 @@ function somfySecurityLevelToHomekitState(securityLevel: "disarmed" | "armed" | 
       return State.NIGHT_ARM;
     case "disarmed":
       return State.DISARMED;
+    default:
+      return undefined;
   }
 }
 
