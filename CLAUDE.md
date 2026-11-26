@@ -19,7 +19,7 @@ Root causes found:
 - No error handling around init/poll, so rejections became uncaught exceptions.
 - axios errors (containing the password body) were logged.
 
-All three PRs are MERGED into master (squash, in order #1, #2, #3; CI green on Node 22/24/26). Release 1.2.0 is not yet published to npm.
+All three PRs are MERGED into main (squash, in order #1, #2, #3; CI green on Node 22/24/26). Release 1.2.0 is not yet published to npm.
 1. PR #1 `fix/429-crash-token-handling`: token expiry fix, single-flight refresh, fallback login, 401 retry, sanitized `SomfyAPIError`, private axios instance (30 s timeout), init retry with jittered backoff (cap 15 min, honours Retry-After), self-rescheduling poll with overlap guard, `setTargetState` never throws.
 2. PR #2 `chore/update-dependencies`: v1.2.0. axios 0.24 -> 1.x, TS 6, ESLint 10 flat config, homebridge 2.5 dev dep. `npm audit` 19 -> 0. Node `^22.12 || ^24 || ^26` (breaking: drops Node 10-20), homebridge `^1.8 || ^2`. CI + Dependabot added. ESLint `no-explicit-any` and `ban-ts-comment` were disabled only to avoid conflicting with PR #1; re-enable once the `@ts-ignore`s in the axios interceptors are removed.
 3. PR #3 `fix/config-validation-hardening`: startup config validation, `onGet`/`onSet`, HAP errors instead of fake states, schema fixes (password masked, draft-07 `required`), npm package trimmed to 12 files, README.
@@ -48,4 +48,6 @@ Only verifiable with a live account: that the hardcoded client still gets a toke
 ## Conventions
 - eslint: double quotes, 2-space indent, max-len 140.
 - Commits end with the Co-Authored-By line; PR bodies end with the Claude Code line.
+- Default branch is `main` (renamed from `master` on 2026-11-26). Branch protection requires PRs + green CI (admin can bypass). Squash or rebase merges only; merged branches auto-delete.
+- Test with a real account via `scripts/live-check.mjs` and `docs/live-testing.md` before every release.
 - `gh` must be logged in as `timothe-ignace` (the owner) to open PRs on the fork.
