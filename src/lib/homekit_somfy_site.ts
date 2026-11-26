@@ -367,7 +367,7 @@ export class HomekitSomfySite {
 
 }
 
-function somfySecurityLevelToHomekitState(securityLevel: string): State | undefined {
+export function somfySecurityLevelToHomekitState(securityLevel: string): State | undefined {
   switch (securityLevel) {
     case "armed":
       return State.AWAY_ARM;
@@ -380,7 +380,7 @@ function somfySecurityLevelToHomekitState(securityLevel: string): State | undefi
   }
 }
 
-function homekitStateToSomfySecurityLevel(state: State): "disarmed" | "armed" | "partial" {
+export function homekitStateToSomfySecurityLevel(state: State): "disarmed" | "armed" | "partial" {
   switch (state) {
     case State.AWAY_ARM:
       return "armed";
