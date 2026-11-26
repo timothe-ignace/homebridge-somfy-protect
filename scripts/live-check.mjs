@@ -69,8 +69,20 @@ async function report(label, response) {
   return data;
 }
 
-function describe(value) {
-  return Array.isArray(value) ? `array(${value.length})` : value === null ? "null" : typeof value === "object" ? "object" : JSON.stringify(value);
+const SHOWN = /alarm|trigger|status|state|mode|level|type|active|enabled|available|mfa/i;
+
+// shows structure, and the value only where the key suggests a state (never ids, names or addresses)
+function describe(value, key = "", depth = 0) {
+  if (Array.isArray(value)) {
+    return `array(${value.length})${value[0] !== undefined && depth < 3 ? ` of ${describe(value[0], key, depth + 1)}` : ""}`;
+  }
+  if (value === null) {
+    return "null";
+  }
+  if (typeof value === "object") {
+    return depth >= 3 ? "object" : `{${Object.entries(value).map(([k, v]) => `${k}: ${describe(v, k, depth + 1)}`).join(", ")}}`;
+  }
+  return SHOWN.test(key) ? JSON.stringify(value) : typeof value;
 }
 
 const username = process.env.SOMFY_USERNAME ?? await prompt("Somfy username: ", false);
@@ -104,8 +116,8 @@ if (items[0]) {
   if (site) {
     console.log("  keys of the site object (look here for an alarm/triggered state to map to ALARM_TRIGGERED):");
     for (const [key, value] of Object.entries(site)) {
-      const interesting = /alarm|trigger|status|state|security|mode/i.test(key);
-      console.log(`    ${key}: ${interesting ? describe(value) : typeof value}`);
+      const interesting = /alarm|trigger|status|state|security|mode|mfa/i.test(key);
+      console.log(`    ${key}: ${interesting ? describe(value, key) : typeof value}`);
     }
   }
   const devices = await report("5. GET /site/{id}/device", await fetch(`${API_URL}/site/${encodeURIComponent(items[0].site_id)}/device`, {headers, signal: AbortSignal.timeout(30000)}));
