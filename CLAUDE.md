@@ -24,6 +24,7 @@ Auth: OAuth2 password grant at `sso.myfox.io` with the public Somfy mobile-app c
 
 Fixes: correct expiry, single-flight refresh, password-login fallback, one 401 retry, sanitized `SomfyAPIError`, private axios instance (30 s timeout), init and poll retry with jittered exponential backoff (cap 15 min, honours Retry-After), `setTargetState` never throws. Also: dependency upgrade (axios 1.x, TypeScript 6, ESLint 10, `npm audit` clean), Node `^22.12 || ^24 || ^26` and Homebridge `^1.8 || ^2` (breaking vs 1.x), startup config validation, HAP errors instead of made-up states, token cache on disk, tests, CI.
 2.0.1 (2026-11-26) logs a warning when `alarm.status` is not `none`.
+3.0.0 (2026-11-26) turned the plugin into a dynamic platform (all sites); tested as `3.0.0-beta.1` (published under the `beta` npm tag, the release workflow tags prereleases automatically) before the final release.
 See `CHANGELOG.md` for the details.
 
 ## Releases
@@ -33,7 +34,7 @@ Bump the version in `package.json`, update `CHANGELOG.md`, merge (PR title `chor
 Tracked as GitHub issues:
 - #6 map `ALARM_TRIGGERED`: the value of `alarm.status` during a real trigger is unknown (it is `none` when idle). The plugin warns once about any other value; map it once someone reports it.
 - #15 account requirements (owner vs child user, 2FA).
-- #16 dynamic platform: implemented for 3.0.0 (design in the issue). Sensors/detectors from `/site/{id}/device` are a follow-up once their structure is known (extend `live-check`). Applying for "Verified by Homebridge" (requires a dynamic platform) comes after 3.0.0 is released and tested on a real account.
+- #16 dynamic platform: done in 3.0.0 (design in the issue). Sensors/detectors from `/site/{id}/device` are a follow-up once their structure is known (extend `live-check`). Applying for "Verified by Homebridge" (requires a dynamic platform) can now be requested (3.0.0 is released and was tested on a real account).
 Not covered by tests yet: the token file persistence.
 
 ## Somfy API facts
