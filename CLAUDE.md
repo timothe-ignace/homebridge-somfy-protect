@@ -19,20 +19,19 @@ Root causes found:
 - No error handling around init/poll, so rejections became uncaught exceptions.
 - axios errors (containing the password body) were logged.
 
-All three PRs are MERGED into main (squash, in order #1, #2, #3; CI green on Node 22/24/26). Release 1.2.0 is not yet published to npm; it will be published as `homebridge-somfy-protect-alarm` (the original npm name belongs to the previous maintainer, chosen by the user on 2026-11-26). Publishing is tracked in issue #14.
+All three PRs are MERGED into main (squash, in order #1, #2, #3; CI green on Node 22/24/26). Release 1.2.0 is not yet published to npm (the changelog still says unreleased); it will be published as `homebridge-somfy-protect-alarm` (the original npm name belongs to the previous maintainer, chosen by the user on 2026-11-26). Publishing is tracked in issue #14.
 1. PR #1 `fix/429-crash-token-handling`: token expiry fix, single-flight refresh, fallback login, 401 retry, sanitized `SomfyAPIError`, private axios instance (30 s timeout), init retry with jittered backoff (cap 15 min, honours Retry-After), self-rescheduling poll with overlap guard, `setTargetState` never throws.
 2. PR #2 `chore/update-dependencies`: v1.2.0. axios 0.24 -> 1.x, TS 6, ESLint 10 flat config, homebridge 2.5 dev dep. `npm audit` 19 -> 0. Node `^22.12 || ^24 || ^26` (breaking: drops Node 10-20), homebridge `^1.8 || ^2`. CI + Dependabot added. ESLint `no-explicit-any` and `ban-ts-comment` were disabled only to avoid conflicting with PR #1; re-enable once the `@ts-ignore`s in the axios interceptors are removed.
 3. PR #3 `fix/config-validation-hardening`: startup config validation, `onGet`/`onSet`, HAP errors instead of fake states, schema fixes (password masked, draft-07 `required`), npm package trimmed to 12 files, README.
 
 ## Open items / follow-ups
-Tracked as GitHub issues #5 to #16 (labels: api, tech-debt, release, needs-live-account).
-- Stop polling on Homebridge shutdown (needs a stop method on `HomekitSomfySite`).
-- `ALARM_TRIGGERED` is never mapped; needs a real site response to find the field.
-- OAuth body is sent as JSON, not form-encoded (works historically; needs a live account to test a change).
-- Re-enable the two ESLint rules; remove `@ts-ignore` in axios interceptors.
-- `somfySecurityLevelToHomekitState` returns undefined for unknown levels (add a default that keeps the previous state).
-- Optional: persist the token to disk (other projects do) so restarts don't re-login; optional config override for OAuth client id/secret.
-- Nothing has been tested against the real Somfy API; only mocked axios. Test with a live account after releasing.
+Done since the first three PRs (merged 2026-11-26): #4 repo hygiene, #17 npm name, #18 lint cleanup + rename, #19 shutdown + unknown levels, #20 token cache + client config, #21 test suite (`npm test`).
+Still open as GitHub issues:
+- #6 map `ALARM_TRIGGERED`: needs the site object keys from `node scripts/live-check.mjs`.
+- #8 form-encoded OAuth body: compare `live-check` with and without `--form`.
+- #14 publish to npm as `homebridge-somfy-protect-alarm` (needs the `NPM_TOKEN` secret, then a GitHub release `v1.2.0`).
+- #15 account requirements (owner vs child, 2FA); #16 dynamic platform plugin (discussion).
+Not covered by tests yet: config validation (`validateConfig` lives in `src/index.ts`) and the token file persistence.
 
 ## API status investigation
 Research on 2026-11-26 (WebSearch/WebFetch by a subagent; moderate confidence, nothing tested live):
