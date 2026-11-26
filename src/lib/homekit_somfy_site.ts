@@ -12,6 +12,9 @@ interface SomfySiteConfig {
   password: string;
   loggingAmount: LoggingAmount;
   siteId: string;
+  clientId?: string;
+  clientSecret?: string;
+  tokenFile?: string;
 }
 
 interface SomfySiteItem {
@@ -54,7 +57,10 @@ export class HomekitSomfySite {
     this.somfyAPI = new SomfyAPI(logger, {
       username: config.username,
       password: config.password,
-      loggingAmount: config.loggingAmount
+      loggingAmount: config.loggingAmount,
+      clientId: config.clientId,
+      clientSecret: config.clientSecret,
+      tokenFile: config.tokenFile
     });
 
     this.emitter = new EventEmitter();

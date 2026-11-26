@@ -35,6 +35,20 @@
         "enum": [0, 1, 2],
         "description": "0 = off, 1 = partial (state changes only), 2 = full (everything)."
       },
+      "clientId": {
+        "title": "OAuth client ID",
+        "type": "string",
+        "description": "Optional. Overrides the built-in Somfy client ID. Must be set together with the client secret."
+      },
+      "clientSecret": {
+        "title": "OAuth client secret",
+        "type": "string",
+        "format": "password",
+        "x-schema-form": {
+          "type": "password"
+        },
+        "description": "Optional. Overrides the built-in Somfy client secret. Must be set together with the client ID."
+      },
       "siteId": {
         "title": "Site ID",
         "type": "string",

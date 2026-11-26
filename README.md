@@ -58,11 +58,13 @@ If your somfy account has multiple homes set up, you can specify which home the 
 | `password` | yes | Your Somfy Protect account password. |
 | `loggingAmount` | no | `0` = off (default), `1` = partial (state changes only), `2` = full. Other values fall back to `0`. |
 | `siteId` | no | Site (home) to use when your account has several. Available IDs are listed in the plugin logs. |
+| `clientId` / `clientSecret` | no | Override the built-in OAuth client (the public Somfy mobile app client). Must be set together. Useful if Somfy revokes the built-in client (the log then reports `invalid_client`). |
 
 If `username` or `password` is missing or empty, the plugin logs a clear error and does not connect, but Homebridge keeps running.
 
 ## Security notes
 
+- The OAuth token is cached in `somfy-protect-token.json` in the Homebridge storage folder (file mode 0600, bound to the account and client) so restarts do not log in again. Delete the file to force a new login. Your password is never written to it.
 - Your Somfy password is stored **in plain text** in Homebridge's `config.json` (the Config UI X password field only masks it on screen). Restrict access to that file and do not share it or post it in issues.
 - The OAuth client credentials contained in the source code are the public ones of the Somfy Protect mobile app. They are not secrets of this project.
 - Two-factor authentication: this plugin has not been verified to work with accounts that have 2FA enabled, and no 2FA step is implemented. If login fails, try with an account without 2FA (untested).
