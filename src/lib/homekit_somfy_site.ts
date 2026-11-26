@@ -69,9 +69,11 @@ export class HomekitSomfySite {
 
   private async initializeWithRetry() {
     let success = false;
+    let threw = false;
     try {
       success = await this.initialize();
     } catch (error: unknown) {
+      threw = true;
       this.registerFailure(error);
       this.logger.error(`Could not initialize: ${errorMessage(error)}`);
     }
@@ -80,6 +82,10 @@ export class HomekitSomfySite {
       this.retryAfterMs = 0;
       this.startPolling();
     } else {
+      if (!threw) {
+        // no exception (e.g. unknown siteId, no site on the account): still back off instead of retrying every poll interval
+        this.failureCount++;
+      }
       const delay = this.nextDelay();
       this.logger.warn(`Initialization failed, retrying in ${Math.round(delay / 1000)} s`);
       this.initTimeout = setTimeout(() => {
