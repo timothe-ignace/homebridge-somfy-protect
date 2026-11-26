@@ -34,6 +34,12 @@ describe("validateConfig", () => {
     assert.equal(validateConfig({...valid, siteId: 12}).errors.length, 1);
   });
 
+  it("reads exposeSensors, on by default", () => {
+    assert.equal(validateConfig(valid).config?.exposeSensors, true);
+    assert.equal(validateConfig({...valid, exposeSensors: false}).config?.exposeSensors, false);
+    assert.equal(validateConfig({...valid, exposeSensors: "no"}).errors.length, 1);
+  });
+
   it("needs clientId and clientSecret together", () => {
     assert.equal(validateConfig({...valid, clientId: "id"}).errors.length, 1);
     const both = validateConfig({...valid, clientId: "id", clientSecret: "secret"});

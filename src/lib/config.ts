@@ -6,6 +6,8 @@ export interface ValidatedConfig {
   loggingAmount: LoggingAmount;
   /** empty means every site of the account */
   siteIds: string[];
+  /** read the devices: smoke detectors become HomeKit sensors, tamper and fault show on the alarm */
+  exposeSensors: boolean;
   clientId?: string;
   clientSecret?: string;
 }
@@ -61,6 +63,16 @@ export function validateConfig(config: Record<string, unknown>): { config?: Vali
     errors.push("\"clientId\" and \"clientSecret\" must be set together (or both left empty to use the built-in client)");
   }
 
+  // exposeSensors: default true
+  let exposeSensors = true;
+  if (!isUnset(config.exposeSensors)) {
+    if (typeof config.exposeSensors === "boolean") {
+      exposeSensors = config.exposeSensors;
+    } else {
+      errors.push("\"exposeSensors\" must be true or false when specified");
+    }
+  }
+
   // loggingAmount: coerced to 0 / 1 / 2, default 0
   let loggingAmount = LoggingAmount.OFF;
   if (!isUnset(config.loggingAmount)) {
@@ -80,6 +92,7 @@ export function validateConfig(config: Record<string, unknown>): { config?: Vali
       password: config.password as string,
       loggingAmount,
       siteIds: [...new Set(siteIds)],
+      exposeSensors,
       clientId,
       clientSecret
     }

@@ -7,6 +7,7 @@ Auth: OAuth2 password grant at `sso.myfox.io` with the public Somfy mobile-app c
 ## Layout
 - `src/index.ts`: dynamic platform (discovery, accessory cache, removal of vanished sites, legacy-config warning)
 - `src/lib/config.ts`: `validateConfig`
+- `src/lib/devices.ts`, `src/lib/smoke_sensor.ts`: devices (`/site/{id}/device`) reduced to a view; HomeKit smoke sensor per smoke detector (`sp_risk_detector`); tamper (`cover_present` false) and fault (`device_lost`) show on the security system
 - `src/lib/security_system.ts`: HomeKit security system characteristics for one site
 - `src/lib/somfy_account.ts`: one account = one login, site discovery, one polling loop with backoff, commands
 - `src/lib/homekit_somfy_site.ts`: `SomfySite` (state of one site), state mapping (`armed`->AWAY_ARM, `partial`->NIGHT_ARM, `disarmed`->DISARMED)
@@ -34,7 +35,7 @@ Bump the version in `package.json`, update `CHANGELOG.md`, merge (PR title `chor
 Tracked as GitHub issues:
 - #6 map `ALARM_TRIGGERED`: the value of `alarm.status` during a real trigger is unknown (it is `none` when idle). The plugin warns once about any other value; map it once someone reports it.
 - #15 account requirements (owner vs child user, 2FA).
-- #16 dynamic platform: done in 3.0.0 (design in the issue). Sensors/detectors from `/site/{id}/device` are a follow-up once their structure is known (extend `live-check`). Applying for "Verified by Homebridge" (requires a dynamic platform) can now be requested (3.0.0 is released and was tested on a real account).
+- #16 dynamic platform: done in 3.0.0 (design in the issue). Sensors: issue #34 (smoke sensor, tamper, fault; the `tag` detectors expose no open/closed state in the API). Applying for "Verified by Homebridge" (requires a dynamic platform) can now be requested (3.0.0 is released and was tested on a real account).
 Not covered by tests yet: the token file persistence.
 
 ## Somfy API facts

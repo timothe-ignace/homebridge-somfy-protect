@@ -6,7 +6,7 @@ import {afterEach, beforeEach, describe, it, mock} from "node:test";
 import * as hap from "@homebridge/hap-nodejs";
 import {API, PlatformAccessory, PlatformConfig} from "homebridge";
 import init from "../src/index";
-import {fakeLogger, flush, isTokenCall, PASSWORD, stubAxios, tokenResponse, USERNAME} from "./helpers";
+import {deviceFixtures, fakeLogger, flush, isTokenCall, PASSWORD, stubAxios, tokenResponse, USERNAME} from "./helpers";
 
 class FakeAccessory {
   readonly services: hap.Service[] = [];
@@ -96,6 +96,51 @@ describe("SomfyProtectPlatform", () => {
     assert.equal(await securityState(registered[1]).handleGetRequest(), hap.Characteristic.SecuritySystemCurrentState.DISARMED);
     const info = registered[0].getService(hap.Service.AccessoryInformation)!;
     assert.equal(info.getCharacteristic(hap.Characteristic.SerialNumber).value, "s1");
+  });
+
+  it("adds a smoke sensor per smoke detector, and shows tamper and fault on the alarm", async () => {
+    let devices = deviceFixtures();
+    stubAxios(call => {
+      if (isTokenCall(call)) {
+        return tokenResponse();
+      }
+      if (call.url.endsWith("/device")) {
+        return {data: {items: devices}};
+      }
+      return call.url.endsWith("/site") ? {data: {items: [sitesBody.items[0]]}} : {data: {security_level: "armed"}};
+    });
+    launch();
+    await flush();
+    assert.deepEqual(registered.map(accessory => accessory.displayName), ["Home", "Kitchen smoke"]);
+    const smoke = registered[1].getService(hap.Service.SmokeSensor)!;
+    const detected = smoke.getCharacteristic(hap.Characteristic.SmokeDetected);
+    assert.equal(await detected.handleGetRequest(), hap.Characteristic.SmokeDetected.SMOKE_NOT_DETECTED);
+    const alarm = registered[0].getService(hap.Service.SecuritySystem)!;
+    const tampered = alarm.getCharacteristic(hap.Characteristic.StatusTampered);
+    assert.equal(await tampered.handleGetRequest(), hap.Characteristic.StatusTampered.NOT_TAMPERED);
+
+    devices = deviceFixtures({smoke: true, coverPresent: false});
+    mock.timers.tick(30000);
+    await flush();
+    mock.timers.tick(10000);
+    await flush();
+    assert.equal(await detected.handleGetRequest(), hap.Characteristic.SmokeDetected.SMOKE_DETECTED);
+    assert.equal(await tampered.handleGetRequest(), hap.Characteristic.StatusTampered.TAMPERED);
+  });
+
+  it("makes no sensor accessory and no device call when exposeSensors is off", async () => {
+    const stub = stubAxios(call => {
+      if (isTokenCall(call)) {
+        return tokenResponse();
+      }
+      return call.url.endsWith("/site") ? {data: {items: [sitesBody.items[0]]}} : {data: {security_level: "armed"}};
+    });
+    launch({...config, exposeSensors: false});
+    await flush();
+    mock.timers.tick(60000);
+    await flush();
+    assert.deepEqual(registered.map(accessory => accessory.displayName), ["Home"]);
+    assert.equal(stub.calls.filter(call => call.url.endsWith("/device")).length, 0);
   });
 
   it("restores cached accessories and removes the ones whose site is gone", async () => {

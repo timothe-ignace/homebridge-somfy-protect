@@ -79,3 +79,22 @@ export async function flush(rounds = 20) {
     await new Promise(resolve => setImmediate(resolve));
   }
 }
+
+/** Devices as returned by GET /site/{id}/device (structure observed on a real account, values made up). */
+export function deviceFixtures(overrides: { smoke?: boolean; coverPresent?: boolean; deviceLost?: boolean } = {}) {
+  const {smoke = false, coverPresent = true, deviceLost = false} = overrides;
+  return [
+    {
+      device_id: "d-tag-1", label: "Window", device_definition: {type: "tag"},
+      status: {cover_present: coverPresent, battery_level: 100, device_lost: deviceLost, last_status_at: "2026-11-12T19:23:28.000000Z"}
+    },
+    {device_id: "d-siren", label: "Siren", device_definition: {type: "siren"}, status: {battery_level: 100, device_lost: false}},
+    {
+      device_id: "d-smoke", label: "Kitchen smoke", device_definition: {type: "sp_risk_detector"},
+      status: {
+        battery_level: 100, battery_low: false, device_lost: false,
+        sp_smoke_detector_smoke_detection: smoke, sp_smoke_detector_error_chamber: false
+      }
+    }
+  ];
+}
