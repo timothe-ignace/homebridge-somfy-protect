@@ -10,7 +10,7 @@ import {
   Service
 } from "homebridge";
 import {HomekitSomfySite, State} from "./lib/homekit_somfy_site";
-import {LoggingAmount} from "./lib/logging_amout";
+import {LoggingAmount} from "./lib/logging_amount";
 
 const PLUGIN_VERSION: string = JSON.parse(readFileSync(join(__dirname, "..", "package.json"), "utf8")).version;
 
