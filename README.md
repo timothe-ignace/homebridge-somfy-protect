@@ -14,8 +14,10 @@ Configure the plugin in your Homebridge `config.json` file or via the popular [C
 Either install and configure the plugin using Config UI X or install it manually by running the following command:
 
 ```
-npm install -g homebridge-somfy-protect
+npm install -g homebridge-somfy-protect-alarm
 ```
+
+> **Migrating from `homebridge-somfy-protect`?** This is the maintained continuation of that unmaintained plugin, published under a new npm name. Uninstall the old one (`npm uninstall -g homebridge-somfy-protect`), install this one, and keep your config as is: the accessory is still `"accessory": "SomfyProtect"`.
 
 Requirements: Node.js 22.12+ (22, 24 or 26) and Homebridge 1.8+ (Homebridge 2.x supported).
 
