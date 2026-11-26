@@ -26,4 +26,12 @@ jobs:
       - run: npm test
       - name: Check the tag matches package.json
         run: test "v$(node -p 'require("./package.json").version')" = "${GITHUB_REF_NAME}"
-      - run: npm publish --access public
+      # a pre-release (3.0.0-beta.1) is published under its own tag (beta), never as "latest"
+      - name: Publish
+        run: |
+          VERSION="$(node -p 'require("./package.json").version')"
+          case "$VERSION" in
+            *-*) TAG="$(node -p 'require("./package.json").version.split("-")[1].split(".")[0]')" ;;
+            *) TAG=latest ;;
+          esac
+          npm publish --access public --tag "$TAG"

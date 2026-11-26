@@ -1,7 +1,7 @@
 {
   "displayName": "Somfy Protect",
   "name": "homebridge-somfy-protect-alarm",
-  "version": "2.0.1",
+  "version": "3.0.0-beta.1",
   "description": "Allows somfy protect alarm to be exposed to homekit via myfox api.",
   "license": "Apache-2.0",
   "repository": {
