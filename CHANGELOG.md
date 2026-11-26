@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.2.1 (2026-11-26)
+
+### Changed
+- The package description (shown on npm and in Homebridge UI search) no longer says "alarm" only.
+- First release published by the GitHub Actions workflow (npm trusted publishing) under the new package name.
+
 ## 3.2.0 (2026-11-26)
 
 ### Changed

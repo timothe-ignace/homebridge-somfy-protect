@@ -1,8 +1,8 @@
 {
   "displayName": "Somfy Protect",
   "name": "homebridge-somfy-protect-v2",
-  "version": "3.2.0",
-  "description": "Allows somfy protect alarm to be exposed to homekit via myfox api.",
+  "version": "3.2.1",
+  "description": "Homebridge plugin for Somfy Protect: control the alarm and see smoke detectors in HomeKit, for every home of your account.",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
