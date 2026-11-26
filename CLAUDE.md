@@ -26,6 +26,7 @@ Auth: OAuth2 password grant at `sso.myfox.io` with the public Somfy mobile-app c
 Fixes: correct expiry, single-flight refresh, password-login fallback, one 401 retry, sanitized `SomfyAPIError`, private axios instance (30 s timeout), init and poll retry with jittered exponential backoff (cap 15 min, honours Retry-After), `setTargetState` never throws. Also: dependency upgrade (axios 1.x, TypeScript 6, ESLint 10, `npm audit` clean), Node `^22.12 || ^24 || ^26` and Homebridge `^1.8 || ^2` (breaking vs 1.x), startup config validation, HAP errors instead of made-up states, token cache on disk, tests, CI.
 2.0.1 (2026-11-26) logs a warning when `alarm.status` is not `none`.
 3.0.0 (2026-11-26) turned the plugin into a dynamic platform (all sites); tested as `3.0.0-beta.1` (published under the `beta` npm tag, the release workflow tags prereleases automatically) before the final release.
+3.1.0 (2026-11-26) added experimental sensors (smoke detector, tamper, fault); tested as `3.1.0-beta.1` on a real account.
 See `CHANGELOG.md` for the details.
 
 ## Releases

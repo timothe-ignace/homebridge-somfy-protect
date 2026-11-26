@@ -1,8 +1,8 @@
 # Changelog
 
-## 3.1.0-beta.1 (2026-11-26)
+## 3.1.0 (2026-11-26)
 
-Pre-release for testing with a real account, published under the `beta` npm tag (`npm install homebridge-somfy-protect-alarm@beta`). `latest` stays on 3.0.0 until 3.1.0.
+Tested on a real account and Homebridge (as `3.1.0-beta.1`) before this release.
 
 ### Added
 - Sensors (experimental, `exposeSensors`, on by default): Somfy smoke detectors become HomeKit smoke sensors; the alarm shows tampered (a device cover is open) and fault (a device lost its radio link, or a detector error). The devices are read at most every 30 s; a refused device list never affects the alarm. See the README for what Somfy does not provide (no open/closed state on the detectors).
