@@ -71,7 +71,7 @@ Somfy's opening and vibration detectors do not report open or closed, so they ca
 - **Too many requests (HTTP 429)**: Somfy is rate limiting you. Wait a few minutes, avoid restarting Homebridge in a loop, and stop other tools that log in to Somfy.
 - **A home is missing, or one too many**: set `siteIds`.
 - **Login fails on an account with two-factor authentication**: the plugin has no step for it and has not been verified with such accounts. Try an account without it.
-- **Still stuck**: set `loggingAmount` to `2`, restart, and [open an issue](https://github.com/timothe-ignace/homebridge-somfy-protect/issues) with the log (the plugin never logs your password or tokens, but skim it first).
+- **Still stuck**: set `loggingAmount` to `2`, restart, and [open an issue](https://github.com/timothe-ignace/homebridge-somfy-protect-v2/issues) with the log (the plugin never logs your password or tokens, but skim it first).
 
 ## Upgrading
 

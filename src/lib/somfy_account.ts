@@ -349,7 +349,7 @@ export class SomfyAccount {
       this.warnedAlarmStatuses.add(status);
       this.logger.warn(
         `Somfy reports alarm status "${status}" for ${site.name}. It is not shown in HomeKit yet; please report this value in ` +
-        "https://github.com/timothe-ignace/homebridge-somfy-protect/issues/6"
+        "https://github.com/timothe-ignace/homebridge-somfy-protect-v2/issues/6"
       );
     }
   }
