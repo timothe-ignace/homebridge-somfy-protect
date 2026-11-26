@@ -17,6 +17,8 @@ Either install and configure the plugin using Config UI X or install it manually
 npm install -g homebridge-somfy-protect
 ```
 
+Requirements: Node.js 22.12+ (22, 24 or 26) and Homebridge 1.8+ (Homebridge 2.x supported).
+
 Then, add the following configuration to the `accessories` array in your Homebridge `config.json`.
 
 ```

@@ -104,7 +104,10 @@ export class HomekitSomfySite {
     const site = this.config.siteId ? items.find((site) => site.site_id === this.config.siteId) : items[0];
     if (items.length > 1 && site) {
       const loggingFunction = this.config.siteId ? "info" : "warn";
-      this.logger[loggingFunction](`Multiple sites detected on your somfy account, using site ID ${site.site_id}. To use an other site, specify site ID in the plugin config under the name "siteId".`);
+      this.logger[loggingFunction](
+        `Multiple sites detected on your somfy account, using site ID ${site.site_id}. ` +
+        "To use an other site, specify site ID in the plugin config under the name \"siteId\"."
+      );
       this.logger[loggingFunction]("Possible sites detected on your somfy account:");
       items.forEach((site, index) => {
         this.logger[loggingFunction](`Site ${index + 1}: ${site.name}, site ID: ${site.site_id}`);
@@ -126,7 +129,9 @@ export class HomekitSomfySite {
         this.logger.error("Could not retrieve site: no sites are configured on your somfy account");
         return false;
       } else if (this.config.siteId) {
-        this.logger.error(`Could not retrieve site: the siteId "${this.config.siteId}" you have configured can not be found on your somfy account`);
+        this.logger.error(
+          `Could not retrieve site: the siteId "${this.config.siteId}" you have configured can not be found on your somfy account`
+        );
         this.logger.error("Possible sites detected on your somfy account:");
         items.forEach((site, index) => {
           this.logger.error(`Site ${index + 1}: ${site.name}, site ID: ${site.site_id}`);
