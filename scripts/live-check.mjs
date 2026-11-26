@@ -85,6 +85,36 @@ function describe(value, key = "", depth = 0) {
   return SHOWN.test(key) ? JSON.stringify(value) : typeof value;
 }
 
+// keys that identify a person, a place or a device are never shown; state-like keys show their value
+const PRIVATE = /(^|_)(id|ids|name|label|serial|mac|address|ssid|token|key|secret|phone|email|latitude|longitude|zip|city|code)(_|$)|address|serial/i;
+const STATE_LIKE = /type|status|state|model|battery|open|presence|motion|temperature|humidity|smoke|light|signal|mode|level|available|enabled|online|version|category|capab|feature|reason|alarm/i;
+
+function shapeOf(value) {
+  if (Array.isArray(value)) {
+    return `[${value.length ? shapeOf(value[0]) : ""}]`;
+  }
+  if (value && typeof value === "object") {
+    return `{${Object.keys(value).sort().map((key) => `${key}:${shapeOf(value[key])}`).join(",")}}`;
+  }
+  return typeof value;
+}
+
+function describeDevice(value, key = "", depth = 0) {
+  if (Array.isArray(value)) {
+    return `array(${value.length})${value[0] !== undefined && depth < 4 ? ` of ${describeDevice(value[0], key, depth + 1)}` : ""}`;
+  }
+  if (value === null) {
+    return "null";
+  }
+  if (typeof value === "object") {
+    return depth >= 4 ? "object" : `{${Object.entries(value).map(([k, v]) => `${k}: ${describeDevice(v, k, depth + 1)}`).join(", ")}}`;
+  }
+  if (PRIVATE.test(key) || !STATE_LIKE.test(key)) {
+    return typeof value;
+  }
+  return JSON.stringify(typeof value === "string" ? value.slice(0, 40) : value);
+}
+
 const username = process.env.SOMFY_USERNAME ?? await prompt("Somfy username: ", false);
 const password = process.env.SOMFY_PASSWORD ?? await prompt("Somfy password: ", true);
 console.log(`\nMode: OAuth requests ${form ? "form-encoded" : "JSON"}\n`);
@@ -121,7 +151,16 @@ if (items[0]) {
     }
   }
   const devices = await report("5. GET /site/{id}/device", await fetch(`${API_URL}/site/${encodeURIComponent(items[0].site_id)}/device`, {headers, signal: AbortSignal.timeout(30000)}));
-  console.log(`  ${devices?.items?.length ?? "?"} device(s)`);
+  const list = devices?.items ?? [];
+  console.log(`  ${list.length} device(s). One example per distinct structure (ids, names, serials and addresses are never printed):`);
+  const shapes = new Map();
+  for (const device of list) {
+    const signature = shapeOf(device);
+    shapes.set(signature, {count: (shapes.get(signature)?.count ?? 0) + 1, device});
+  }
+  for (const {count, device} of shapes.values()) {
+    console.log(`  - x${count}: ${describeDevice(device)}`);
+  }
 }
 
 console.log("\nDone. Nothing was changed on your alarm. Test arming/disarming from the Home app.");
