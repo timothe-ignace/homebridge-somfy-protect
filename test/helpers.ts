@@ -1,4 +1,4 @@
-import axios, {AxiosError, AxiosRequestConfig, AxiosResponse} from "axios";
+import axios, {AxiosError, AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig} from "axios";
 import {Logging} from "homebridge";
 import {mock} from "node:test";
 
@@ -30,7 +30,7 @@ export function stubAxios(handler: Handler) {
   const originalCreate = axios.create.bind(axios);
   mock.method(axios, "create", (config?: AxiosRequestConfig) => originalCreate({
     ...config,
-    adapter: async (requestConfig: any): Promise<AxiosResponse> => {
+    adapter: async (requestConfig: InternalAxiosRequestConfig): Promise<AxiosResponse> => {
       let body: Record<string, string> | undefined;
       if (typeof requestConfig.data === "string") {
         body = JSON.parse(requestConfig.data);
@@ -65,7 +65,7 @@ export function fakeLogger(): FakeLogger {
   const record = (...args: unknown[]) => {
     lines.push(args.map(arg => typeof arg === "string" ? arg : JSON.stringify(arg)).join(" "));
   };
-  const logger: any = (...args: unknown[]) => record(...args);
+  const logger = ((...args: unknown[]) => record(...args)) as unknown as FakeLogger & Record<string, unknown>;
   for (const level of ["info", "warn", "error", "debug", "success", "log"]) {
     logger[level] = record;
   }

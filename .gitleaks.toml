@@ -1,0 +1,16 @@
+title = "homebridge-somfy-protect"
+
+[extend]
+useDefault = true
+
+# The Somfy mobile app's OAuth client id/secret is public (it ships in the app, and in this project since 2020).
+[[allowlists]]
+description = "Public Somfy mobile-app OAuth client"
+condition = "AND"
+paths = ['''src/lib/somfy_api\.ts''', '''src/lib/Somfy\.ts''']
+regexTarget = "line"
+regexes = ['''CLIENT_(ID|SECRET)\s*=\s*"''']
+
+[[allowlists]]
+description = "Build output (not committed)"
+paths = ['''^dist/''', '''^\.test-dist/''', '''^node_modules/''']
