@@ -1,3 +1,5 @@
+import {readFileSync} from "fs";
+import {join} from "path";
 import {
   AccessoryConfig,
   AccessoryPlugin,
@@ -10,8 +12,7 @@ import {
 import {HomekitSomfySite, State} from "./lib/homekit_somfy_site";
 import {LoggingAmount} from "./lib/logging_amout";
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const PLUGIN_VERSION: string = require("../package.json").version;
+const PLUGIN_VERSION: string = JSON.parse(readFileSync(join(__dirname, "..", "package.json"), "utf8")).version;
 
 const MODEL = "Somfy Protect";
 const DEFAULT_SERIAL_NUMBER = "Default-SerialNumber";
