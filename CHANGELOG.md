@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 3.0.0-beta.1 (2026-11-26)
+
+Pre-release for testing with a real account, published under the `beta` npm tag (`npm install homebridge-somfy-protect-alarm@beta`). `latest` stays on 2.0.1 until 3.0.0.
 
 ### Changed (breaking)
 - The plugin is now a Homebridge **dynamic platform** (it was an accessory plugin). Move the config block from `accessories` to `platforms` and use `"platform": "SomfyProtect"`; see "Upgrading from 2.x" in the README. HomeKit sees the alarm as a new accessory.
