@@ -252,6 +252,10 @@ export class SomfyAccount {
           return;
         }
         this.reportAlarmStatus(site, result?.data?.alarm?.status);
+        const domesticAlarm = result?.data?.domestic_alarm;
+        if (result?.data?.alarm?.status === "none" && Array.isArray(domesticAlarm) && domesticAlarm.length === 0) {
+          site.reconcileIdle(Date.now());
+        }
         const security_level = result?.data?.security_level;
         // a pending command has priority over what the poll has seen
         if (security_level && this.commandsInFlight === 0) {

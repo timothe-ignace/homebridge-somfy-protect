@@ -254,6 +254,7 @@ describe("SomfyAccount with real-time events", () => {
 
   async function setup(realtimeEvents = true, level = "armed") {
     let securityLevel = level;
+    let idleAlarm = false;
     let siteReads = 0;
     const stub = stubAxios(call => {
       if (isTokenCall(call)) {
@@ -263,7 +264,7 @@ describe("SomfyAccount with real-time events", () => {
         return {data: {items: [{site_id: "s1", name: "Home", security_level: level}]}};
       }
       siteReads++;
-      return {data: {security_level: securityLevel}};
+      return {data: {security_level: securityLevel, ...(idleAlarm ? {alarm: {status: "none"}, domestic_alarm: []} : {})}};
     });
     const logger = fakeLogger();
     const f = factory();
@@ -280,7 +281,7 @@ describe("SomfyAccount with real-time events", () => {
     await flush();
     return {
       account, logger, stub, sockets: f.sockets, site: site as SomfySite,
-      setLevel: (value: string) => securityLevel = value, reads: () => siteReads
+      setLevel: (value: string) => securityLevel = value, setIdle: (value: boolean) => idleAlarm = value, reads: () => siteReads
     };
   }
 
@@ -335,18 +336,43 @@ describe("SomfyAccount with real-time events", () => {
     account.stop();
   });
 
-  it("clears the triggered status when security.level.change or a poll says disarmed", async () => {
+  it("clears a triggered intrusion alarm when the security level changes (disarming)", async () => {
     const {sockets, site, account, setLevel} = await setup();
-    sockets[0].push({key: "alarm.domestic.fire", site_id: "s1"});
+    sockets[0].push({key: "alarm.trespass", site_id: "s1"});
     assert.equal(site.getCurrentState(), State.ALARM_TRIGGERED);
     sockets[0].push({key: "security.level.change", site_id: "s1", security_level: "disarmed"});
     assert.equal(site.getCurrentState(), State.DISARMED);
 
-    sockets[0].push({key: "alarm.panic", site_id: "s1"});
+    sockets[0].push({key: "security.level.change", site_id: "s1", security_level: "armed"});
+    sockets[0].push({key: "alarm.trespass", site_id: "s1"});
     assert.equal(site.getCurrentState(), State.ALARM_TRIGGERED);
-    setLevel("disarmed");
+    setLevel("disarmed"); // a poll that sees a different level than at the start of the alarm
     mock.timers.tick(10000);
     await flush();
+    assert.equal(site.getCurrentState(), State.DISARMED);
+    account.stop();
+  });
+
+  it("keeps a fire alarm in a disarmed system until alarm.end or until Somfy reports nothing going on", async () => {
+    const {sockets, site, account, setLevel, setIdle} = await setup(true, "disarmed");
+    setLevel("disarmed");
+    sockets[0].push({key: "alarm.domestic.fire", site_id: "s1"});
+    assert.equal(site.getCurrentState(), State.ALARM_TRIGGERED);
+    mock.timers.tick(10000); // polls say disarmed, which is no end of the alarm
+    await flush();
+    assert.equal(site.getCurrentState(), State.ALARM_TRIGGERED);
+
+    setIdle(true); // REST data says idle, but the alarm is recent: it may lag behind the event
+    mock.timers.tick(10000);
+    await flush();
+    assert.equal(site.getCurrentState(), State.ALARM_TRIGGERED);
+    mock.timers.tick(60000); // idle for long enough: the end event was missed
+    await flush();
+    assert.equal(site.getCurrentState(), State.DISARMED);
+
+    sockets[0].push({key: "alarm.domestic.fire", site_id: "s1"});
+    assert.equal(site.getCurrentState(), State.ALARM_TRIGGERED);
+    sockets[0].push({key: "alarm.end", site_id: "s1"});
     assert.equal(site.getCurrentState(), State.DISARMED);
     account.stop();
   });
