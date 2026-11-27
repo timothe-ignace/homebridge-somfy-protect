@@ -32,6 +32,7 @@ Fixes: correct expiry, single-flight refresh, password-login fallback, one 401 r
 3.2.1 (2026-11-26) new package description; first release published by CI under the new name (check that the trusted publisher worked).
 3.2.0 (2026-11-26) renamed the package to `homebridge-somfy-protect-v2` (same code and config as 3.1.0). The first publish of a new package name has to be manual (2FA), and the trusted publisher must then be registered on npmjs.com for the new name before the release workflow can publish it.
 3.1.0 (2026-11-26) added experimental sensors (smoke detector, tamper, fault); tested as `3.1.0-beta.1` on a real account.
+3.3.0 (2026-11-27) added the camera privacy switch and the real-time event channel (triggered alarm status); tested as `3.3.0-beta.1` on a real account (shutter switch and instant updates confirmed; the alarm event names are still unverified).
 See `CHANGELOG.md` for the details.
 
 ## Releases

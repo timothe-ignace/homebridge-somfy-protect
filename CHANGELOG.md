@@ -1,6 +1,6 @@
 # Changelog
 
-## 3.3.0-beta.1 (2026-11-27)
+## 3.3.0 (2026-11-27)
 
 ### Added
 - Camera privacy switch (experimental, `exposeCameraPrivacy`, on by default): each Somfy indoor camera gets a HomeKit switch, on = shutter closed. It follows the shutter reported by Somfy and opens or closes it with the same command the Somfy app uses. A failed command shows the real position again.

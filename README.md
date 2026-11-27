@@ -85,7 +85,8 @@ A short history, so you know which steps apply to you:
 | 1.x | The original plugin, `homebridge-somfy-protect`, no longer maintained. |
 | 2.x | The start of this fork, published as `homebridge-somfy-protect-alarm` because the original name belongs to the previous maintainer. Same config as 1.x, with fixes and updated dependencies. |
 | 3.0 to 3.1 | Still published as `homebridge-somfy-protect-alarm`. The plugin became a Homebridge *platform*, so the config format changed (below). It now adds every home of your account, plus the smoke sensors. |
-| 3.2 and later | Renamed to `homebridge-somfy-protect-v2`, since it is no longer only an alarm. Same config as 3.1 (below). |
+| 3.2 | Renamed to `homebridge-somfy-protect-v2`, since it is no longer only an alarm. Same config as 3.1 (below). |
+| 3.3 and later | Adds the camera privacy switch and real-time events. Nothing to change in your config; both are on by default and can be switched off. |
 
 <details>
 <summary>From <code>homebridge-somfy-protect-alarm</code> (2.x to 3.1)</summary>
