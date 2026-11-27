@@ -1,5 +1,10 @@
 # Changelog
 
+## 3.3.1 (2026-11-27)
+
+### Changed
+- `homebridge` is no longer a peer dependency (it stays a dev dependency, and `engines.homebridge` still states the supported versions), as the Homebridge verification checks require.
+
 ## 3.3.0 (2026-11-27)
 
 ### Added
