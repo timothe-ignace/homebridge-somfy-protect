@@ -73,6 +73,12 @@
         "type": "boolean",
         "default": true,
         "description": "Add a switch for the privacy shutter of each Somfy indoor camera (on = shutter closed). Experimental: opening and closing the shutter uses an unofficial command."
+      },
+      "realtimeEvents": {
+        "title": "Real-time events",
+        "type": "boolean",
+        "default": true,
+        "description": "Experimental. Listen to an unofficial Somfy event channel for instant state changes and a triggered alarm status. Polling stays active as a safety net. Turn off if you see connection problems."
       }
     },
     "required": [

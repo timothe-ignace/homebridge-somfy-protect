@@ -8,6 +8,9 @@ export enum State {
   ALARM_TRIGGERED = 4
 }
 
+/** REST data can lag a little behind the real-time event: an alarm reported less than this ago is not cleared by it */
+const TRIGGER_GRACE = 60000;
+
 type SendTargetState = (site: SomfySite, state: State) => void;
 type SendShutter = (site: SomfySite, deviceId: string, closed: boolean) => void;
 
@@ -18,6 +21,10 @@ export class SomfySite {
 
   private currentState: State | null = null;
   private targetState: State | null = null;
+  private triggered = false;
+  /** the state when the alarm started, and when: a different state later means the alarm was stopped (e.g. disarmed) */
+  private triggeredFrom: State | null = null;
+  private triggeredAt = 0;
   private readonly emitter = new EventEmitter();
   private devicesView: DevicesView = {smokeDetectors: [], cameras: [], tampered: false, fault: false};
   /** @internal time of the last successful device read */
@@ -37,7 +44,7 @@ export class SomfySite {
 
   getCurrentState(): State {
     if (this.currentState) {
-      return this.currentState;
+      return this.triggered ? State.ALARM_TRIGGERED : this.currentState;
     } else {
       throw new Error("getCurrentState: SomfySite not properly initialized");
     }
@@ -113,10 +120,41 @@ export class SomfySite {
 
   /** @internal The state seen by a poll (also needed for changes made outside HomeKit). */
   updateState(state: State) {
-    if (this.currentState !== state) {
+    // a change of the security level stops an alarm (e.g. disarming an intrusion alarm); a fire alarm in a disarmed system does not
+    const clears = this.triggered && state !== this.triggeredFrom;
+    if (clears) {
+      this.triggered = false;
+    }
+    if (this.currentState !== state || clears) {
       this.currentState = state;
       this.targetState = state;
       this.emitter.emit("currentStateChange");
+    }
+  }
+
+  isTriggered(): boolean {
+    return this.triggered;
+  }
+
+  /** @internal An alarm started or ended (real-time events); the target state is left unchanged. */
+  setTriggered(triggered: boolean) {
+    if (triggered) {
+      this.triggeredFrom = this.currentState;
+      this.triggeredAt = Date.now();
+    }
+    if (this.triggered !== triggered) {
+      this.triggered = triggered;
+      this.emitter.emit("currentStateChange");
+    }
+  }
+
+  /**
+   * @internal Somfy's REST data says nothing is going on. If an alarm was reported a while ago (the end event may have been
+   * missed, e.g. while the channel was down), it is over.
+   */
+  reconcileIdle(now: number) {
+    if (this.triggered && now - this.triggeredAt >= TRIGGER_GRACE) {
+      this.setTriggered(false);
     }
   }
 

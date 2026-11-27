@@ -284,6 +284,16 @@ export class SomfyAPI {
     return this.tokenPromise;
   }
 
+  /**
+   * A valid access token (for the real-time channel). `forceRefresh` renews it first, e.g. after the channel rejected it.
+   */
+  async getAccessToken(forceRefresh = false): Promise<string> {
+    if (forceRefresh && this.token) {
+      this.token = {...this.token, issuance: Number.MIN_SAFE_INTEGER}; // expired, but the refresh token is kept
+    }
+    return (await this.updateToken()).access_token;
+  }
+
   private async request(method: "get" | "put" | "post", path: string, data?: unknown): Promise<AxiosResponse> {
     for (let attempt = 0; ; attempt++) {
       const token = await this.updateToken();

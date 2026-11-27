@@ -13,6 +13,7 @@ Auth: OAuth2 password grant at `sso.myfox.io` with the public Somfy mobile-app c
 - `src/lib/security_system.ts`: HomeKit security system characteristics for one site
 - `src/lib/somfy_account.ts`: one account = one login, site discovery, one polling loop with backoff, commands
 - `src/lib/homekit_somfy_site.ts`: `SomfySite` (state of one site), state mapping (`armed`->AWAY_ARM, `partial`->NIGHT_ARM, `disarmed`->DISARMED)
+- `src/lib/somfy_events.ts`, `src/lib/somfy_event_handler.ts`: optional real-time WebSocket channel (`realtimeEvents`) and its mapping to site state (instant level change, triggered alarm)
 - `src/lib/somfy_api.ts`: HTTP client, token handling and disk cache
 - `config.schema.json`: Config UI X schema
 - `test/`: `node:test` suite (network faked by stubbing `axios.create`), run with `npm test`

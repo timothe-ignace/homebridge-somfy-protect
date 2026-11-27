@@ -64,6 +64,7 @@ Somfy's opening and vibration detectors do not report open or closed, so they ca
 | `siteIds` | all homes | List of home (site) IDs to add. The IDs of your homes are written in the Homebridge log at startup. |
 | `exposeSensors` | `true` | Add the smoke detectors, tamper and fault. `false` stops reading the devices. |
 | `exposeCameraPrivacy` | `true` | Add the privacy switch of each indoor camera. `false` removes it (the devices are still read while `exposeSensors` is on). |
+| `realtimeEvents` | `true` | Experimental. Instant state changes, and the alarm shows as triggered in HomeKit while Somfy reports an alarm. Uses an unofficial Somfy event channel; polling stays active as a safety net. `false` switches it off. The triggered status could not be verified against a real alarm. |
 | `loggingAmount` | `0` | `0` off, `1` state changes, `2` everything. Use `2` when reporting a problem. |
 | `clientId`, `clientSecret` | built in | Advanced: use your own Somfy OAuth client instead of the built-in one. Set both or neither. |
 

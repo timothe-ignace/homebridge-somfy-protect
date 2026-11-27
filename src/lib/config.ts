@@ -12,6 +12,8 @@ export interface ValidatedConfig {
   exposeCameraPrivacy: boolean;
   clientId?: string;
   clientSecret?: string;
+  /** instant updates and triggered status through the unofficial event channel */
+  realtimeEvents: boolean;
 }
 
 function isNonEmptyString(value: unknown): value is string {
@@ -85,6 +87,16 @@ export function validateConfig(config: Record<string, unknown>): { config?: Vali
     }
   }
 
+  // realtimeEvents: default true
+  let realtimeEvents = true;
+  if (!isUnset(config.realtimeEvents)) {
+    if (typeof config.realtimeEvents === "boolean") {
+      realtimeEvents = config.realtimeEvents;
+    } else {
+      errors.push("\"realtimeEvents\" must be true or false when specified");
+    }
+  }
+
   // loggingAmount: coerced to 0 / 1 / 2, default 0
   let loggingAmount = LoggingAmount.OFF;
   if (!isUnset(config.loggingAmount)) {
@@ -107,7 +119,8 @@ export function validateConfig(config: Record<string, unknown>): { config?: Vali
       exposeSensors,
       exposeCameraPrivacy,
       clientId,
-      clientSecret
+      clientSecret,
+      realtimeEvents
     }
   };
 }
