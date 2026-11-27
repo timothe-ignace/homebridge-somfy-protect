@@ -3,7 +3,9 @@ import {afterEach, beforeEach, describe, it, mock} from "node:test";
 import {SomfySite, State} from "../src/lib/homekit_somfy_site";
 import {SomfyAccount} from "../src/lib/somfy_account";
 import {LoggingAmount} from "../src/lib/logging_amount";
-import {deviceFixtures, fakeLogger, flush, isTokenCall, PASSWORD, RecordedCall, stubAxios, tokenResponse, USERNAME} from "./helpers";
+import {
+  cameraFixture, deviceFixtures, fakeLogger, flush, isTokenCall, PASSWORD, RecordedCall, stubAxios, tokenResponse, USERNAME
+} from "./helpers";
 
 describe("SomfyAccount", () => {
   const unhandled: unknown[] = [];
@@ -334,6 +336,82 @@ describe("SomfyAccount", () => {
       await flush();
       assert.equal(countPath(stub.calls, "/site/s1"), before, "waits for Retry-After");
       assert.deepEqual(unhandled, []);
+    });
+  });
+  describe("camera shutter", () => {
+    function cameraStub(actionStatus = 200) {
+      let shutter: "opened" | "closed" = "opened";
+      const stub = stubAxios(call => {
+        if (isTokenCall(call)) {
+          return tokenResponse();
+        }
+        if (call.method === "post") {
+          if (actionStatus === 200) {
+            shutter = call.body?.action === "shutter_close" ? "closed" : "opened";
+          }
+          return {status: actionStatus};
+        }
+        if (call.url.endsWith("/device")) {
+          return {data: {items: [cameraFixture(shutter)]}};
+        }
+        return call.url.endsWith("/site") ? {data: sitesBody} : {data: {security_level: "armed"}};
+      });
+      return stub;
+    }
+
+    it("sends the shutter command, shows it at once and reads the devices again", async () => {
+      const stub = cameraStub();
+      const created = createSite([], true);
+      await flush();
+      const site = created.site;
+      assert.equal(site.getDevicesView().cameras[0].shutterClosed, false);
+      let notifications = 0;
+      site.onDevicesChange(() => notifications++);
+
+      site.setShutter("d-cam", true);
+      await flush();
+      const posts = stub.apiCalls().filter(call => call.method === "post");
+      assert.equal(posts.length, 1);
+      assert.ok(posts[0].url.endsWith("/site/s1/device/d-cam/action"));
+      assert.deepEqual(posts[0].body, {action: "shutter_close"});
+      assert.equal(site.getDevicesView().cameras[0].shutterClosed, true, "shown at once");
+      assert.equal(notifications, 1);
+
+      const reads = countPath(stub.calls, "/device");
+      mock.timers.tick(3000);
+      await flush();
+      assert.equal(countPath(stub.calls, "/device"), reads + 1, "devices are read again");
+      assert.equal(site.getDevicesView().cameras[0].shutterClosed, true);
+      assert.deepEqual(unhandled, []);
+    });
+
+    it("shows the real position again when the command fails", async () => {
+      const stub = cameraStub(500);
+      const created = createSite([], true);
+      await flush();
+      const site = created.site;
+      let notifications = 0;
+      site.onDevicesChange(() => notifications++);
+      site.setShutter("d-cam", true);
+      await flush();
+      assert.equal(stub.apiCalls().filter(call => call.method === "post").length, 1);
+      assert.equal(site.getDevicesView().cameras[0].shutterClosed, false);
+      assert.equal(notifications, 1, "listeners are told to show the real state");
+      assert.ok(created.logger.lines.some(line => line.includes("Could not move the camera shutter")));
+      assert.deepEqual(unhandled, []);
+    });
+
+    it("cancels the pending device read on stop()", async () => {
+      const stub = cameraStub();
+      const created = createSite([], true);
+      await flush();
+      created.site.setShutter("d-cam", true);
+      await flush();
+      const reads = countPath(stub.calls, "/device");
+      created.account.stop();
+      mock.timers.tick(10000);
+      await flush();
+      assert.equal(countPath(stub.calls, "/device"), reads);
     });
   });
 });

@@ -6,6 +6,7 @@ import {SomfyAccount} from "./lib/somfy_account";
 import {validateConfig} from "./lib/config";
 import {attachSecuritySystem} from "./lib/security_system";
 import {attachSmokeSensor} from "./lib/smoke_sensor";
+import {attachCameraShutter} from "./lib/camera_shutter";
 
 const PLUGIN_VERSION: string = JSON.parse(readFileSync(join(__dirname, "..", "package.json"), "utf8")).version;
 
@@ -51,21 +52,25 @@ class SomfyProtectPlatform implements DynamicPlatformPlugin {
       password: config.password,
       loggingAmount: config.loggingAmount,
       siteIds: config.siteIds,
-      fetchDevices: config.exposeSensors,
+      fetchDevices: config.exposeSensors || config.exposeCameraPrivacy,
       clientId: config.clientId,
       clientSecret: config.clientSecret,
       tokenFile: join(this.api.user.storagePath(), TOKEN_FILE_NAME)
     });
     this.account = account;
-    account.onDiscovered((sites) => this.syncAccessories(sites, config.loggingAmount, config.exposeSensors));
+    account.onDiscovered((sites) => {
+      this.syncAccessories(sites, config.loggingAmount, config.exposeSensors, config.exposeCameraPrivacy);
+    });
     account.start();
   }
 
   /*
-   * One security system per site and one smoke sensor per smoke detector: restore the cached accessory or create it,
-   * and remove the ones whose site or detector is gone.
+   * One security system per site, one smoke sensor per smoke detector and one privacy switch per indoor camera:
+   * restore the cached accessory or create it, and remove the ones whose site or device is gone.
    */
-  private syncAccessories(sites: SomfySite[], loggingAmount: number, exposeSensors: boolean) {
+  private syncAccessories(
+    sites: SomfySite[], loggingAmount: number, exposeSensors: boolean, exposeCameraPrivacy: boolean
+  ) {
     const used = new Set<string>();
     for (const site of sites) {
       const accessory = this.accessoryFor(`somfy-protect:${site.siteId}`, site.name, used);
@@ -74,6 +79,12 @@ class SomfyProtectPlatform implements DynamicPlatformPlugin {
         for (const detector of site.getDevicesView().smokeDetectors) {
           const sensor = this.accessoryFor(`somfy-protect:${site.siteId}:${detector.deviceId}`, detector.name, used);
           attachSmokeSensor(this.api, this.logger, sensor, site, detector.deviceId, PLUGIN_VERSION);
+        }
+      }
+      if (exposeCameraPrivacy) {
+        for (const camera of site.getDevicesView().cameras) {
+          const shutter = this.accessoryFor(`somfy-protect:${site.siteId}:${camera.deviceId}`, `${camera.name} privacy`, used);
+          attachCameraShutter(this.api, this.logger, shutter, site, camera.deviceId, PLUGIN_VERSION);
         }
       }
     }

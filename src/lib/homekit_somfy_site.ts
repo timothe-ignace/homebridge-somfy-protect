@@ -9,6 +9,7 @@ export enum State {
 }
 
 type SendTargetState = (site: SomfySite, state: State) => void;
+type SendShutter = (site: SomfySite, deviceId: string, closed: boolean) => void;
 
 /**
  * The state of one Somfy site as seen from HomeKit. It is fed by a SomfyAccount (polling) and sends commands through it.
@@ -18,11 +19,16 @@ export class SomfySite {
   private currentState: State | null = null;
   private targetState: State | null = null;
   private readonly emitter = new EventEmitter();
-  private devicesView: DevicesView = {smokeDetectors: [], tampered: false, fault: false};
+  private devicesView: DevicesView = {smokeDetectors: [], cameras: [], tampered: false, fault: false};
   /** @internal time of the last successful device read */
   lastDevicesAt = 0;
 
-  constructor(readonly siteId: string, readonly name: string, private readonly sendTargetState: SendTargetState) {
+  constructor(
+    readonly siteId: string,
+    readonly name: string,
+    private readonly sendTargetState: SendTargetState,
+    private readonly sendShutter?: SendShutter
+  ) {
   }
 
   isInitialized(): boolean {
@@ -64,8 +70,29 @@ export class SomfySite {
     return this.devicesView;
   }
 
+  /**
+   * Opens or closes the privacy shutter of a camera; never throws, a failure shows the real state again.
+   */
+  setShutter(deviceId: string, closed: boolean) {
+    this.sendShutter?.(this, deviceId, closed);
+  }
+
   onDevicesChange(callback: () => void) {
     this.emitter.addListener("devicesChange", callback);
+  }
+
+  /** @internal A shutter command succeeded: show the new position until the next read confirms it. */
+  applyShutter(deviceId: string, closed: boolean) {
+    const camera = this.devicesView.cameras.find((candidate) => candidate.deviceId === deviceId);
+    if (camera && camera.shutterClosed !== closed) {
+      camera.shutterClosed = closed;
+      this.emitter.emit("devicesChange");
+    }
+  }
+
+  /** @internal Tells the listeners to show the real state again (e.g. after a failed command). */
+  notifyDevicesChanged() {
+    this.emitter.emit("devicesChange");
   }
 
   /** @internal The devices seen by a read; notifies only when what HomeKit shows has changed. */

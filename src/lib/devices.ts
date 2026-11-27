@@ -17,8 +17,16 @@ export interface SmokeDetectorView {
   fault: boolean;
 }
 
+export interface CameraView {
+  deviceId: string;
+  name: string;
+  /** the privacy shutter is closed (shutter_state "closed") */
+  shutterClosed: boolean;
+}
+
 export interface DevicesView {
   smokeDetectors: SmokeDetectorView[];
+  cameras: CameraView[];
   /** a device cover is open (cover_present is false) */
   tampered: boolean;
   /** a device lost its radio link, or a smoke detector reports an internal error */
@@ -26,7 +34,9 @@ export interface DevicesView {
 }
 
 export const SMOKE_DETECTOR_TYPE = "sp_risk_detector";
+export const INDOOR_CAMERA_TYPE = "indoor_camera";
 const DEFAULT_SMOKE_DETECTOR_NAME = "Smoke detector";
+const DEFAULT_CAMERA_NAME = "Camera";
 
 export function isSmokeDetector(device: SomfyDevice): boolean {
   return device.device_definition?.type === SMOKE_DETECTOR_TYPE;
@@ -46,8 +56,18 @@ export function viewDevices(devices: SomfyDevice[]): DevicesView {
       fault: status.device_lost === true || status.sp_smoke_detector_error_chamber === true
     };
   });
+  // only a camera that reports its shutter ("opened" / "closed") can be shown
+  const cameras = devices
+    .filter((device) => device.device_definition?.type === INDOOR_CAMERA_TYPE)
+    .filter((device) => device.status?.shutter_state === "opened" || device.status?.shutter_state === "closed")
+    .map((device): CameraView => ({
+      deviceId: device.device_id,
+      name: typeof device.label === "string" && device.label.trim() ? device.label.trim() : DEFAULT_CAMERA_NAME,
+      shutterClosed: device.status?.shutter_state === "closed"
+    }));
   return {
     smokeDetectors,
+    cameras,
     tampered: devices.some((device) => device.status?.cover_present === false),
     fault: devices.some((device) => device.status?.device_lost === true || device.status?.sp_smoke_detector_error_chamber === true)
   };

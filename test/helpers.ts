@@ -98,3 +98,11 @@ export function deviceFixtures(overrides: { smoke?: boolean; coverPresent?: bool
     }
   ];
 }
+
+/** An indoor camera as returned by GET /site/{id}/device (structure observed on a real account, values made up). */
+export function cameraFixture(shutterState: "opened" | "closed" | null = "opened") {
+  return {
+    device_id: "d-cam", label: "Living room", device_definition: {type: "indoor_camera"},
+    status: {power_state: 1, wifi_level_percent: 89, ...(shutterState ? {shutter_state: shutterState} : {})}
+  };
+}

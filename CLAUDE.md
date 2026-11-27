@@ -8,6 +8,7 @@ Auth: OAuth2 password grant at `sso.myfox.io` with the public Somfy mobile-app c
 ## Layout
 - `src/index.ts`: dynamic platform (discovery, accessory cache, removal of vanished sites, legacy-config warning)
 - `src/lib/config.ts`: `validateConfig`
+- `src/lib/camera_shutter.ts`: HomeKit switch for the privacy shutter of an indoor camera (`shutter_state`; command `POST /v3/site/{id}/device/{id}/action` `shutter_open|shutter_close`, taken from other Somfy clients, tested only with mocks until a real run)
 - `src/lib/devices.ts`, `src/lib/smoke_sensor.ts`: devices (`/site/{id}/device`) reduced to a view; HomeKit smoke sensor per smoke detector (`sp_risk_detector`); tamper (`cover_present` false) and fault (`device_lost`) show on the security system
 - `src/lib/security_system.ts`: HomeKit security system characteristics for one site
 - `src/lib/somfy_account.ts`: one account = one login, site discovery, one polling loop with backoff, commands
