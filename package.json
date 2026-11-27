@@ -1,7 +1,7 @@
 {
   "displayName": "Somfy Protect",
   "name": "homebridge-somfy-protect-v2",
-  "version": "3.2.1",
+  "version": "3.3.0-beta.1",
   "description": "Homebridge plugin for Somfy Protect: control the alarm and see smoke detectors in HomeKit, for every home of your account.",
   "license": "Apache-2.0",
   "repository": {
