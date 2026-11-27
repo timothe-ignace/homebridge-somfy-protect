@@ -284,13 +284,16 @@ export class SomfyAPI {
     return this.tokenPromise;
   }
 
-  private async request(method: "get" | "put", path: string, data?: unknown): Promise<AxiosResponse> {
+  private async request(method: "get" | "put" | "post", path: string, data?: unknown): Promise<AxiosResponse> {
     for (let attempt = 0; ; attempt++) {
       const token = await this.updateToken();
       const options: AxiosRequestConfig = {headers: {"Authorization": `Bearer ${token.access_token}`}};
       try {
         if (method === "put") {
           return await this.http.put(`${this.baseUrl}${path}`, data, options);
+        }
+        if (method === "post") {
+          return await this.http.post(`${this.baseUrl}${path}`, data, options);
         }
         return await this.http.get(`${this.baseUrl}${path}`, options);
       } catch (error: unknown) {
@@ -318,6 +321,10 @@ export class SomfyAPI {
 
   async getDevices(siteId: string) {
     return this.request("get", `/site/${encodeURIComponent(siteId)}/device`);
+  }
+
+  async sendDeviceAction(siteId: string, deviceId: string, action: "shutter_open" | "shutter_close") {
+    return this.request("post", `/site/${encodeURIComponent(siteId)}/device/${encodeURIComponent(deviceId)}/action`, {action});
   }
 
   async setSecurityLevel(siteId: string, status: "disarmed" | "armed" | "partial") {

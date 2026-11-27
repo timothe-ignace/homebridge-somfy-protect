@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import {describe, it} from "node:test";
 import {viewDevices} from "../src/lib/devices";
-import {deviceFixtures} from "./helpers";
+import {cameraFixture, deviceFixtures} from "./helpers";
 
 describe("viewDevices", () => {
   it("finds the smoke detectors and reports a quiet system", () => {
@@ -28,5 +28,12 @@ describe("viewDevices", () => {
     assert.equal(view.smokeDetectors.length, 1);
     assert.equal(view.smokeDetectors[0].name, "Smoke detector");
     assert.equal(view.smokeDetectors[0].smoke, false);
+  });
+
+  it("shows an indoor camera only when it reports its shutter", () => {
+    assert.deepEqual(viewDevices([cameraFixture("closed")]).cameras, [{deviceId: "d-cam", name: "Living room", shutterClosed: true}]);
+    assert.equal(viewDevices([cameraFixture("opened")]).cameras[0].shutterClosed, false);
+    assert.deepEqual(viewDevices([cameraFixture(null)]).cameras, []);
+    assert.deepEqual(viewDevices(deviceFixtures()).cameras, []);
   });
 });

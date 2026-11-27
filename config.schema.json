@@ -67,6 +67,12 @@
         "type": "boolean",
         "default": true,
         "description": "Add the smoke detectors of your Somfy system as HomeKit smoke sensors, and show tamper and fault status on the alarm. Experimental: the values Somfy reports during a real smoke or tamper event have not been verified. Turn off to stop reading the devices."
+      },
+      "exposeCameraPrivacy": {
+        "title": "Camera privacy switch",
+        "type": "boolean",
+        "default": true,
+        "description": "Add a switch for the privacy shutter of each Somfy indoor camera (on = shutter closed). Experimental: opening and closing the shutter uses an unofficial command."
       }
     },
     "required": [

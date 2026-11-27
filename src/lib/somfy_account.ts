@@ -8,6 +8,7 @@ import Timeout = NodeJS.Timeout;
 const POLL_INTERVAL = 10000;
 const MAX_BACKOFF = 15 * 60 * 1000;
 const DEVICE_POLL_INTERVAL = 30000;
+const DEVICE_REFRESH_DELAY = 3000;
 
 export interface SomfyAccountConfig {
   username: string;
@@ -15,7 +16,7 @@ export interface SomfyAccountConfig {
   loggingAmount: LoggingAmount;
   /** sites to expose; empty or undefined means every site of the account */
   siteIds?: string[];
-  /** read the devices (smoke detectors, tamper, fault) in addition to the alarm state */
+  /** read the devices (smoke detectors, camera shutters, tamper, fault) in addition to the alarm state */
   fetchDevices?: boolean;
   clientId?: string;
   clientSecret?: string;
@@ -52,6 +53,7 @@ export class SomfyAccount {
   private failureCount = 0;
   private retryAfterMs = 0;
   private fetchDevices: boolean;
+  private readonly deviceRefreshTimers = new Map<string, Timeout>();
 
   constructor(logger: Logging, config: SomfyAccountConfig) {
     this.logger = logger;
@@ -153,7 +155,11 @@ export class SomfyAccount {
     const names = selected.map((item) => `${item.name} (${item.site_id})`).join(", ");
     this.logger.info(`Using ${selected.length} of ${items.length} site(s): ${names}`);
     this.sites = selected.map((item) => {
-      const site = new SomfySite(item.site_id, item.name, (target, state) => this.sendTargetState(target, state));
+      const site = new SomfySite(
+        item.site_id, item.name,
+        (target, state) => this.sendTargetState(target, state),
+        (target, deviceId, closed) => this.sendShutter(target, deviceId, closed)
+      );
       if (item.security_level) {
         const state = this.mapSecurityLevel(item.security_level);
         if (state !== undefined) {
@@ -325,6 +331,8 @@ export class SomfyAccount {
       clearTimeout(this.initTimeout);
       this.initTimeout = null;
     }
+    this.deviceRefreshTimers.forEach((timer) => clearTimeout(timer));
+    this.deviceRefreshTimers.clear();
   }
 
   /**
@@ -352,6 +360,47 @@ export class SomfyAccount {
         "https://github.com/timothe-ignace/homebridge-somfy-protect-v2/issues/6"
       );
     }
+  }
+
+  /**
+   * Moves a camera privacy shutter (POST .../action). On success the new position is shown at once and the devices are read
+   * again shortly after; on failure the real position is shown again.
+   */
+  private sendShutter(site: SomfySite, deviceId: string, closed: boolean) {
+    // logging
+    if (this.config.loggingAmount === LoggingAmount.FULL) {
+      this.logger.info(`Camera shutter (${site.name}): ${closed ? "closing" : "opening"}`);
+    }
+    this.somfyAPI.sendDeviceAction(site.siteId, deviceId, closed ? "shutter_close" : "shutter_open")
+      .then(() => {
+        site.applyShutter(deviceId, closed);
+        this.refreshDevicesSoon(site);
+      })
+      .catch((error: unknown) => {
+        if (error instanceof SomfyAPIError && error.status === 429) {
+          this.registerFailure(error);
+        }
+        this.logger.error(`Could not move the camera shutter: ${errorMessage(error)}`);
+        site.notifyDevicesChanged();
+      })
+      .catch(error => this.logger.error(`Unexpected error: ${errorMessage(error)}`));
+  }
+
+  /**
+   * Reads the devices of a site again in a few seconds (after a command, or when told that something changed).
+   */
+  refreshDevicesSoon(site: SomfySite) {
+    if (!this.fetchDevices || this.stopped || this.deviceRefreshTimers.has(site.siteId)) {
+      return;
+    }
+    const timer = setTimeout(() => {
+      this.deviceRefreshTimers.delete(site.siteId);
+      if (this.stopped || !this.fetchDevices) {
+        return;
+      }
+      this.refreshDevices(site).catch(error => this.logger.warn(`Could not read the devices of ${site.name}: ${errorMessage(error)}`));
+    }, DEVICE_REFRESH_DELAY);
+    this.deviceRefreshTimers.set(site.siteId, timer);
   }
 
   private sendTargetState(site: SomfySite, state: State) {

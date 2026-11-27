@@ -40,6 +40,12 @@ describe("validateConfig", () => {
     assert.equal(validateConfig({...valid, exposeSensors: "no"}).errors.length, 1);
   });
 
+  it("reads exposeCameraPrivacy, on by default", () => {
+    assert.equal(validateConfig(valid).config?.exposeCameraPrivacy, true);
+    assert.equal(validateConfig({...valid, exposeCameraPrivacy: false}).config?.exposeCameraPrivacy, false);
+    assert.equal(validateConfig({...valid, exposeCameraPrivacy: 1}).errors.length, 1);
+  });
+
   it("needs clientId and clientSecret together", () => {
     assert.equal(validateConfig({...valid, clientId: "id"}).errors.length, 1);
     const both = validateConfig({...valid, clientId: "id", clientSecret: "secret"});

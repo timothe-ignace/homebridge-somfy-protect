@@ -8,6 +8,8 @@ export interface ValidatedConfig {
   siteIds: string[];
   /** read the devices: smoke detectors become HomeKit sensors, tamper and fault show on the alarm */
   exposeSensors: boolean;
+  /** a HomeKit switch for the privacy shutter of each indoor camera */
+  exposeCameraPrivacy: boolean;
   clientId?: string;
   clientSecret?: string;
 }
@@ -73,6 +75,16 @@ export function validateConfig(config: Record<string, unknown>): { config?: Vali
     }
   }
 
+  // exposeCameraPrivacy: default true
+  let exposeCameraPrivacy = true;
+  if (!isUnset(config.exposeCameraPrivacy)) {
+    if (typeof config.exposeCameraPrivacy === "boolean") {
+      exposeCameraPrivacy = config.exposeCameraPrivacy;
+    } else {
+      errors.push("\"exposeCameraPrivacy\" must be true or false when specified");
+    }
+  }
+
   // loggingAmount: coerced to 0 / 1 / 2, default 0
   let loggingAmount = LoggingAmount.OFF;
   if (!isUnset(config.loggingAmount)) {
@@ -93,6 +105,7 @@ export function validateConfig(config: Record<string, unknown>): { config?: Vali
       loggingAmount,
       siteIds: [...new Set(siteIds)],
       exposeSensors,
+      exposeCameraPrivacy,
       clientId,
       clientSecret
     }

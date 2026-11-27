@@ -6,7 +6,7 @@ import {afterEach, beforeEach, describe, it, mock} from "node:test";
 import * as hap from "@homebridge/hap-nodejs";
 import {API, PlatformAccessory, PlatformConfig} from "homebridge";
 import init from "../src/index";
-import {deviceFixtures, fakeLogger, flush, isTokenCall, PASSWORD, stubAxios, tokenResponse, USERNAME} from "./helpers";
+import {cameraFixture, deviceFixtures, fakeLogger, flush, isTokenCall, PASSWORD, stubAxios, tokenResponse, USERNAME} from "./helpers";
 
 class FakeAccessory {
   readonly services: hap.Service[] = [];
@@ -128,6 +128,50 @@ describe("SomfyProtectPlatform", () => {
     assert.equal(await tampered.handleGetRequest(), hap.Characteristic.StatusTampered.TAMPERED);
   });
 
+  it("adds a privacy switch per camera, reads the shutter and sends the command", async () => {
+    let shutter: "opened" | "closed" = "closed";
+    const stub = stubAxios(call => {
+      if (isTokenCall(call)) {
+        return tokenResponse();
+      }
+      if (call.method === "post") {
+        shutter = call.body?.action === "shutter_close" ? "closed" : "opened";
+        return {data: {}};
+      }
+      if (call.url.endsWith("/device")) {
+        return {data: {items: [cameraFixture(shutter)]}};
+      }
+      return call.url.endsWith("/site") ? {data: {items: [sitesBody.items[0]]}} : {data: {security_level: "armed"}};
+    });
+    launch();
+    await flush();
+    assert.deepEqual(registered.map(accessory => accessory.displayName), ["Home", "Living room privacy"]);
+    const on = registered[1].getService(hap.Service.Switch)!.getCharacteristic(hap.Characteristic.On);
+    assert.equal(await on.handleGetRequest(), true);
+
+    await on.handleSetRequest(false);
+    await flush();
+    const post = stub.apiCalls().find(call => call.method === "post");
+    assert.deepEqual(post?.body, {action: "shutter_open"});
+    assert.equal(await on.handleGetRequest(), false);
+  });
+
+  it("makes no camera switch when exposeCameraPrivacy is off, and no device call when both options are off", async () => {
+    const stub = stubAxios(call => {
+      if (isTokenCall(call)) {
+        return tokenResponse();
+      }
+      if (call.url.endsWith("/device")) {
+        return {data: {items: [cameraFixture("closed")]}};
+      }
+      return call.url.endsWith("/site") ? {data: {items: [sitesBody.items[0]]}} : {data: {security_level: "armed"}};
+    });
+    launch({...config, exposeCameraPrivacy: false});
+    await flush();
+    assert.deepEqual(registered.map(accessory => accessory.displayName), ["Home"]);
+    assert.equal(stub.calls.filter(call => call.url.endsWith("/device")).length, 1, "sensors still read the devices");
+  });
+
   it("makes no sensor accessory and no device call when exposeSensors is off", async () => {
     const stub = stubAxios(call => {
       if (isTokenCall(call)) {
@@ -135,7 +179,7 @@ describe("SomfyProtectPlatform", () => {
       }
       return call.url.endsWith("/site") ? {data: {items: [sitesBody.items[0]]}} : {data: {security_level: "armed"}};
     });
-    launch({...config, exposeSensors: false});
+    launch({...config, exposeSensors: false, exposeCameraPrivacy: false});
     await flush();
     mock.timers.tick(60000);
     await flush();

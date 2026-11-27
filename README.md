@@ -50,10 +50,11 @@ Use the account that owns the alarm. An account of a user invited into someone e
 | Your alarm (one per home on your account) | Security system: Away, Night (partial) and Off |
 | Smoke detector | Smoke sensor, with low battery and fault |
 | A device cover opened, or a device that lost its link | Tamper and fault on the alarm |
+| Indoor camera | A "privacy" switch: on = the shutter is closed. Turn it on or off from Home to close or open the shutter |
 
-Smoke sensors, tamper and fault are **experimental**: they follow what Somfy reports, but they have not been checked against a real fire or tamper event. Do not rely on them as your only smoke alarm.
+Smoke sensors, tamper, fault and the camera switch are **experimental**: they follow what Somfy reports, but they have not been checked against a real fire or tamper event. Do not rely on them as your only smoke alarm.
 
-Somfy's opening and vibration detectors do not report open or closed, so they cannot appear as door or window sensors. Sirens, keypads, remotes and cameras are not shown.
+Somfy's opening and vibration detectors do not report open or closed, so they cannot appear as door or window sensors. Sirens, keypads, remotes and the box are not shown, and neither is the camera's video (only its privacy shutter).
 
 ## Settings
 
@@ -62,6 +63,7 @@ Somfy's opening and vibration detectors do not report open or closed, so they ca
 | `username`, `password` | required | Your Somfy Protect account. |
 | `siteIds` | all homes | List of home (site) IDs to add. The IDs of your homes are written in the Homebridge log at startup. |
 | `exposeSensors` | `true` | Add the smoke detectors, tamper and fault. `false` stops reading the devices. |
+| `exposeCameraPrivacy` | `true` | Add the privacy switch of each indoor camera. `false` removes it (the devices are still read while `exposeSensors` is on). |
 | `loggingAmount` | `0` | `0` off, `1` state changes, `2` everything. Use `2` when reporting a problem. |
 | `clientId`, `clientSecret` | built in | Advanced: use your own Somfy OAuth client instead of the built-in one. Set both or neither. |
 
