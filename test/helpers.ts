@@ -19,7 +19,13 @@ export interface RecordedCall {
 
 export type Handler = (call: RecordedCall, config: AxiosRequestConfig) => FakeResponse | Promise<FakeResponse>;
 
-export const isTokenCall = (call: RecordedCall) => call.url.includes("sso.myfox.io");
+export const isTokenCall = (call: RecordedCall) => {
+  try {
+    return new URL(call.url).hostname === "sso.myfox.io";
+  } catch {
+    return false;
+  }
+};
 
 /**
  * Replaces axios.create so that every instance created by the code under test uses a fake adapter.
