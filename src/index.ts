@@ -55,6 +55,7 @@ class SomfyProtectPlatform implements DynamicPlatformPlugin {
       fetchDevices: config.exposeSensors || config.exposeCameraPrivacy,
       clientId: config.clientId,
       clientSecret: config.clientSecret,
+      realtimeEvents: config.realtimeEvents,
       tokenFile: join(this.api.user.storagePath(), TOKEN_FILE_NAME)
     });
     this.account = account;

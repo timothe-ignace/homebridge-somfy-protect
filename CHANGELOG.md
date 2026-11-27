@@ -4,6 +4,7 @@
 
 ### Added
 - Camera privacy switch (experimental, `exposeCameraPrivacy`, on by default): each Somfy indoor camera gets a HomeKit switch, on = shutter closed. It follows the shutter reported by Somfy and opens or closes it with the same command the Somfy app uses. A failed command shows the real position again.
+- Real-time events (experimental, `realtimeEvents`, on by default): a WebSocket on an unofficial Somfy channel gives instant state changes and reports a triggered alarm to HomeKit. Polling is unchanged and stays the safety net. The triggered status could not be verified against a real alarm.
 
 ## 3.2.1 (2026-11-26)
 

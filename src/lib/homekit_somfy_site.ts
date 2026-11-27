@@ -18,6 +18,7 @@ export class SomfySite {
 
   private currentState: State | null = null;
   private targetState: State | null = null;
+  private triggered = false;
   private readonly emitter = new EventEmitter();
   private devicesView: DevicesView = {smokeDetectors: [], cameras: [], tampered: false, fault: false};
   /** @internal time of the last successful device read */
@@ -37,7 +38,7 @@ export class SomfySite {
 
   getCurrentState(): State {
     if (this.currentState) {
-      return this.currentState;
+      return this.triggered ? State.ALARM_TRIGGERED : this.currentState;
     } else {
       throw new Error("getCurrentState: SomfySite not properly initialized");
     }
@@ -113,9 +114,26 @@ export class SomfySite {
 
   /** @internal The state seen by a poll (also needed for changes made outside HomeKit). */
   updateState(state: State) {
-    if (this.currentState !== state) {
+    // disarming stops an alarm
+    const clears = state === State.DISARMED && this.triggered;
+    if (clears) {
+      this.triggered = false;
+    }
+    if (this.currentState !== state || clears) {
       this.currentState = state;
       this.targetState = state;
+      this.emitter.emit("currentStateChange");
+    }
+  }
+
+  isTriggered(): boolean {
+    return this.triggered;
+  }
+
+  /** @internal An alarm started or ended (real-time events); the target state is left unchanged. */
+  setTriggered(triggered: boolean) {
+    if (this.triggered !== triggered) {
+      this.triggered = triggered;
       this.emitter.emit("currentStateChange");
     }
   }

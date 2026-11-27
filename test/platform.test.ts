@@ -72,7 +72,7 @@ describe("SomfyProtectPlatform", () => {
     return api as unknown as API;
   }
 
-  const config = {platform: "SomfyProtect", name: "Somfy Protect", username: USERNAME, password: PASSWORD};
+  const config = {platform: "SomfyProtect", name: "Somfy Protect", username: USERNAME, password: PASSWORD, realtimeEvents: false};
 
   function launch(platformConfig: Record<string, unknown> = config, cached: FakeAccessory[] = []) {
     const logger = fakeLogger();

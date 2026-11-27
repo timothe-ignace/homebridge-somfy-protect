@@ -3,6 +3,8 @@ import {SomfyAPI, SomfyAPIError} from "./somfy_api";
 import {SomfyDevice} from "./devices";
 import {LoggingAmount} from "./logging_amount";
 import {homekitStateToSomfySecurityLevel, SomfySite, somfySecurityLevelToHomekitState, State} from "./homekit_somfy_site";
+import {SomfyEventSocket, WebSocketLike} from "./somfy_events";
+import {handleSiteEvent} from "./somfy_event_handler";
 import Timeout = NodeJS.Timeout;
 
 const POLL_INTERVAL = 10000;
@@ -21,6 +23,10 @@ export interface SomfyAccountConfig {
   clientId?: string;
   clientSecret?: string;
   tokenFile?: string;
+  /** real-time events (experimental, unofficial channel) in addition to polling */
+  realtimeEvents?: boolean;
+  /** test seam: replaces the global WebSocket */
+  webSocketFactory?: (url: string) => WebSocketLike;
 }
 
 interface SomfySiteItem {
@@ -54,6 +60,7 @@ export class SomfyAccount {
   private retryAfterMs = 0;
   private fetchDevices: boolean;
   private readonly deviceRefreshTimers = new Map<string, Timeout>();
+  private eventSocket: SomfyEventSocket | null = null;
 
   constructor(logger: Logging, config: SomfyAccountConfig) {
     this.logger = logger;
@@ -111,6 +118,7 @@ export class SomfyAccount {
         }
       }
       this.startPolling();
+      this.startEvents();
     } else {
       if (!threw) {
         // no exception (e.g. unknown siteIds, no site on the account): still back off instead of retrying every poll interval
@@ -323,6 +331,8 @@ export class SomfyAccount {
    */
   stop() {
     this.stopped = true;
+    this.eventSocket?.stop();
+    this.eventSocket = null;
     if (this.timeout !== null) {
       clearTimeout(this.timeout);
       this.timeout = null;
@@ -401,6 +411,43 @@ export class SomfyAccount {
       this.refreshDevices(site).catch(error => this.logger.warn(`Could not read the devices of ${site.name}: ${errorMessage(error)}`));
     }, DEVICE_REFRESH_DELAY);
     this.deviceRefreshTimers.set(site.siteId, timer);
+  }
+
+  private startEvents() {
+    if (this.config.realtimeEvents !== true || this.eventSocket || this.stopped) {
+      return;
+    }
+    // a failure of the channel is only logged; the polling goes on
+    this.eventSocket = new SomfyEventSocket(this.logger, {
+      getToken: (forceRefresh) => this.somfyAPI.getAccessToken(forceRefresh),
+      loggingAmount: this.config.loggingAmount,
+      webSocketFactory: this.config.webSocketFactory,
+      onEvent: (event) => handleSiteEvent({
+        logger: this.logger,
+        loggingAmount: this.config.loggingAmount,
+        sites: () => this.sites,
+        mapSecurityLevel: (level) => this.mapSecurityLevel(level),
+        commandInFlight: () => this.commandsInFlight > 0,
+        requestRefresh: () => this.refreshNow(),
+        requestDeviceRefresh: (siteId) => this.requestDeviceRefresh(siteId)
+      }, event)
+    });
+    this.eventSocket.start();
+  }
+
+  /** Polls now instead of at the next interval (no-op while a poll is under way or polling is paused by a command). */
+  private refreshNow() {
+    if (!this.polling && !this.pollingStopped) {
+      this.scheduleNextPoll(0);
+    }
+  }
+
+  /** A device or privacy event arrived for this site: read its devices again shortly (shutter moved, battery, tamper...). */
+  private requestDeviceRefresh(siteId: string) {
+    const site = this.sites.find((candidate) => candidate.siteId === siteId);
+    if (site) {
+      this.refreshDevicesSoon(site);
+    }
   }
 
   private sendTargetState(site: SomfySite, state: State) {
