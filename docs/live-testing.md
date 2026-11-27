@@ -8,6 +8,7 @@ The automated checks (CI) only build and lint. Nothing in the repo talks to the 
 git clone https://github.com/timothe-ignace/homebridge-somfy-protect-v2 && cd homebridge-somfy-protect-v2
 node scripts/live-check.mjs          # OAuth requests as JSON (what the plugin sends today)
 node scripts/live-check.mjs --form   # same, form-encoded (what RFC 6749 specifies)
+node scripts/live-check.mjs --events=60   # also reads the site history, then listens 60 s to the real-time event socket
 ```
 
 It asks for your Somfy username and password (hidden), or reads `SOMFY_USERNAME` / `SOMFY_PASSWORD`. It never prints tokens or the password and never changes the alarm state. It reports:
@@ -16,7 +17,8 @@ It asks for your Somfy username and password (hidden), or reads `SOMFY_USERNAME`
 2. the refresh grant,
 3. `GET /site` (your sites and their `security_level`),
 4. the keys of the site object (use this to find the field for a triggered alarm),
-5. the device count.
+5. a safe summary of the devices,
+6. with `--events`: the structure of the site history and the names and structure of the real-time events received while it listens (open a window, move the camera shutter; keep the alarm disarmed and do not trigger it).
 
 How to read it:
 - `1. Password grant: HTTP 200` means the built-in OAuth client still works.
