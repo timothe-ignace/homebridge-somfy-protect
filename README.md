@@ -10,9 +10,11 @@
 
 Control your **Somfy Protect** alarm (ex-MyFox) from Apple Home: arm, partially arm and disarm it, and see its state change when you use the Somfy app or the keypad.
 
-- Your alarm shows up in the Home app as a security system (Away, Night, Off).
-- Smoke detectors show up as smoke sensors.
-- Works with the same email and password as the Somfy Protect app. No developer account, no API key.
+- **Just your Somfy login.** The same email and password as the Somfy Protect app. No developer account, no API key to request.
+- **Every home on your account**, each as its own security system (Away, Night, Off).
+- **More than the alarm:** smoke detectors, tamper and fault status, and a privacy switch for your indoor camera's shutter.
+- **Fast:** changes made in the Somfy app, on the keypad or from a remote show up within seconds, and a triggered alarm is reported to Home.
+- **Careful with Somfy's servers:** one login for all homes, a cached token across restarts, and a longer wait after an error.
 
 > Unofficial plugin, not affiliated with Somfy.
 
