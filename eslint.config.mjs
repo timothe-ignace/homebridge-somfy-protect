@@ -41,6 +41,9 @@ export default tseslint.config(
         fetch: "readonly",
         AbortSignal: "readonly",
         URLSearchParams: "readonly",
+        WebSocket: "readonly",
+        setTimeout: "readonly",
+        clearTimeout: "readonly",
       },
     },
     rules: {

@@ -2,10 +2,12 @@
 /*
  * Live check of the Somfy (ex-MyFox) API with a real account. Read-only: it never changes the alarm state.
  *
- *   node scripts/live-check.mjs [--form]
+ *   node scripts/live-check.mjs [--form] [--events[=SECONDS]]
  *
  * Credentials are read from SOMFY_USERNAME / SOMFY_PASSWORD, or prompted (the password is not echoed).
  * Tokens and the password are never printed. --form sends the OAuth requests form-encoded instead of JSON.
+ * --events also reads the site history and then listens to the real-time event socket for SECONDS (default 60), printing
+ * the event names and their structure; during that time use your system normally (open a window, move the camera shutter...).
  */
 import {readFileSync} from "node:fs";
 import {createInterface} from "node:readline";
@@ -15,6 +17,9 @@ import {dirname, join} from "node:path";
 const TOKEN_URL = "https://sso.myfox.io/oauth/oauth/v2/token";
 const API_URL = "https://api.myfox.io/v3";
 const form = process.argv.includes("--form");
+const eventsArg = process.argv.find((arg) => arg === "--events" || arg.startsWith("--events="));
+const eventsSeconds = eventsArg ? Math.max(5, Number(eventsArg.split("=")[1]) || 60) : 0;
+const SOCKET_URL = "wss://websocket.myfox.io/events/websocket";
 
 // the public mobile-app OAuth client, read from the plugin source so it stays in one place
 const source = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "src", "lib", "somfy_api.ts"), "utf8");
@@ -115,6 +120,53 @@ function describeDevice(value, key = "", depth = 0) {
   return JSON.stringify(typeof value === "string" ? value.slice(0, 40) : value);
 }
 
+// real-time events: the token goes in the URL (as the Somfy apps do) and is never printed
+function listen(accessToken, seconds) {
+  return new Promise((resolve) => {
+    console.log(`\n7. Event socket: listening for ${seconds} s. Use your system now (alarm disarmed): open and close a window with a detector, move the camera shutter, walk past a detector. Do not trigger the alarm.`);
+    let count = 0;
+    const socket = new WebSocket(`${SOCKET_URL}?token=${encodeURIComponent(accessToken)}`);
+    const done = () => {
+      try {
+        socket.close();
+      } catch {
+        // already closed
+      }
+      console.log(`  ${count} event(s) received.`);
+      resolve();
+    };
+    const timer = setTimeout(done, seconds * 1000);
+    socket.addEventListener("open", () => console.log("  connected"));
+    socket.addEventListener("error", () => console.log("  socket error (the event channel may be unavailable for this account)"));
+    socket.addEventListener("close", () => {
+      clearTimeout(timer);
+      resolve();
+    });
+    socket.addEventListener("message", (message) => {
+      count++;
+      let text = typeof message.data === "string" ? message.data : "";
+      let parsed = null;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        // not JSON
+      }
+      const time = new Date().toISOString().slice(11, 19);
+      // the event name is shown as is (a "key" field would otherwise be hidden as private)
+      const label = [parsed?.key, parsed?.event, parsed?.type, parsed?.name].find((value) => typeof value === "string" && /^[\w.-]{1,60}$/.test(value));
+      console.log(`  ${time} ${label ? `[${label}] ` : ""}${parsed ? describeDevice(parsed, "event") : `(non-JSON, ${text.length} chars)`}`);
+      // acknowledge, as the Somfy apps do, so that the server keeps sending
+      if (parsed?.message_id !== undefined) {
+        try {
+          socket.send(JSON.stringify({ack: true, message_id: parsed.message_id, client: "Android"}));
+        } catch {
+          // closed meanwhile
+        }
+      }
+    });
+  });
+}
+
 const username = process.env.SOMFY_USERNAME ?? await prompt("Somfy username: ", false);
 const password = process.env.SOMFY_PASSWORD ?? await prompt("Somfy password: ", true);
 console.log(`\nMode: OAuth requests ${form ? "form-encoded" : "JSON"}\n`);
@@ -160,6 +212,21 @@ if (items[0]) {
   }
   for (const {count, device} of shapes.values()) {
     console.log(`  - x${count}: ${describeDevice(device)}`);
+  }
+
+  if (eventsSeconds) {
+    const history = await report("6. GET /site/{id}/history", await fetch(`${API_URL}/site/${encodeURIComponent(items[0].site_id)}/history`, {headers, signal: AbortSignal.timeout(30000)}));
+    const entries = history?.items ?? [];
+    console.log(`  ${entries.length} history entr${entries.length === 1 ? "y" : "ies"}. One example per distinct structure:`);
+    const kinds = new Map();
+    for (const entry of entries) {
+      const signature = shapeOf(entry);
+      kinds.set(signature, {count: (kinds.get(signature)?.count ?? 0) + 1, entry});
+    }
+    for (const {count, entry} of [...kinds.values()].slice(0, 12)) {
+      console.log(`  - x${count}: ${describeDevice(entry)}`);
+    }
+    await listen(token.access_token, eventsSeconds);
   }
 }
 
